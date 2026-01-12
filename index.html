@@ -10,15 +10,10 @@
     
     <title id="seo_titulo">Carregando Loja...</title>
     <meta id="seo_descricao" name='description' content='Catálogo de produtos online.'/>
-    <meta id="seo_keywords" name='keywords' content='loja, vendas, catalogo'/>
-    <meta id="seo_autor" name='author' content='Drop-to-Shop'/>
     
     <link rel="preconnect" href="https://script.google.com">
     <link rel="preconnect" href="https://lh3.googleusercontent.com">
     <link rel="preconnect" href="https://drive.google.com">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&amp;family=Roboto:wght@300;400;500&amp;display=swap" rel="stylesheet"/>
     <link crossorigin='anonymous' href='https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css' integrity='sha384-KyZXEAg3QhqLMpG8r+8fhAXLRk2vvoC2f3B09zVXn8CA5QIVfZOJ3BCsw2P0p/We' rel='stylesheet'/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
@@ -27,12 +22,10 @@
     <style>
       body { padding-bottom: 120px; }
       
-      /* Ajuste botão carrinho mobile */
       @media (max-width: 576px) {
         #btn_carrinho_flutuante { bottom: 20px; right: 20px; }
       }
 
-      /* Estilo para opção de tamanho selecionada */
       .btn-check:checked + .btn-outline-secondary {
           background-color: var(--cor-principal, #0d6efd);
           color: white;
@@ -134,8 +127,15 @@
                         <button type="button" class="btn btn-success btn-lg" id="btnAdicionarModal">Adicionar ao Carrinho</button>
                     </div>
 
-                    <div class="alert alert-info small">
-                        <i class="bi bi-info-circle"></i> Calcule o frete de todos os itens direto no carrinho!
+                    <div class="card bg-light border-0 mb-3">
+                        <div class="card-body p-3">
+                            <h6 class="card-title" style="font-size: 0.9rem;">Simular Frete (1 Unidade)</h6>
+                            <div class="input-group input-group-sm mb-2">
+                                <input type="text" class="form-control" id="inputSimulaCepIndividual" placeholder="CEP" maxlength="9">
+                                <button class="btn btn-outline-secondary" type="button" id="btnSimularFreteIndividual">OK</button>
+                            </div>
+                            <div id="resultadoFreteIndividual" class="small text-muted"></div>
+                        </div>
                     </div>
 
                     <h6>Descrição:</h6>
@@ -164,7 +164,6 @@
         </div>
       </div>
     </div>
-    
     <div class='modal' id='modalUsuario' tabindex='-1'>
       <div class='modal-dialog'>
         <div class='modal-content'>
@@ -198,7 +197,7 @@
             
             <div class="card bg-light border-0 mb-3">
                 <div class="card-body">
-                    <h6 class="card-title fw-bold">Calcular Frete e Prazo</h6>
+                    <h6 class="card-title fw-bold">Calcular Frete (Pedido Completo)</h6>
                     <div class="row g-2 align-items-center">
                         <div class="col-auto">
                             <input type="text" class="form-control" id="carrinho_cep" placeholder="Digite seu CEP" maxlength="9" onblur="buscarEnderecoSimples(this.value)">
