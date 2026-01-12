@@ -864,3 +864,107 @@ function irParaCheckoutManual(cpfInformado) {
     
     new bootstrap.Modal(document.getElementById('modalCheckout')).show();
 }
+
+
+// --- AJUSTES DE FLUXO E LIMPEZA ---
+
+// 1. Limpa a busca se o usuário apagar o CPF
+$(document).on('input', '#cpf_identificacao', function() {
+    var valor = $(this).val().replace(/\D/g, '');
+    if (valor.length < 11) {
+        $("#resultado_busca_identidade").slideUp();
+        $("#btn_buscar_identidade_div").fadeIn();
+        enderecoEntregaTemp = {}; // Limpa memória temporária
+    }
+});
+
+// 2. Bloqueio por LGPD e Busca de CEP no Checkout
+function buscarIdentidade() {
+    // Validação da caixinha LGPD
+    if (!document.getElementById('check_lgpd').checked) {
+        alert("Para continuar, você precisa autorizar o uso dos dados conforme a LGPD.");
+        return;
+    }
+
+    var cpf = document.getElementById('cpf_identificacao').value.replace(/\D/g, '');
+    if (cpf.length !== 11) { alert("Informe um CPF válido"); return; }
+    
+    var btn = document.querySelector('#btn_buscar_identidade_div button');
+    btn.innerText = "Consultando...";
+    btn.disabled = true;
+
+    fetch(CONFIG.SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ op: "buscar_cliente", cpf: cpf })
+    })
+    .then(r => r.json())
+    .then(dados => {
+        btn.innerText = "Continuar";
+        btn.disabled = false;
+        
+        if (dados.encontrado) {
+            enderecoEntregaTemp = dados;
+            document.getElementById('resumo_dados_cliente').innerHTML = `
+                <div class="alert alert-secondary p-2 mb-0">
+                    <strong>${dados.nome} ${dados.sobrenome}</strong><br>
+                    ${dados.rua}, ${dados.numero}<br>
+                    CEP: ${dados.cep}
+                </div>
+            `;
+            $("#resultado_busca_identidade").slideDown();
+            $("#btn_buscar_identidade_div").hide();
+        } else {
+            irParaCheckoutManual(cpf);
+        }
+    });
+}
+
+// 3. Função para buscar CEP dentro da tela de pagamento
+function buscarCepNoCheckout() {
+    var cep = document.getElementById('checkout_cep').value.replace(/\D/g, '');
+    if (cep.length !== 8) { alert("CEP Inválido"); return; }
+    
+    fetch(`https://viacep.com.br/ws/${cep}/json/`)
+    .then(r => r.json())
+    .then(d => {
+        if (!d.erro) {
+            document.getElementById('checkout_rua').value = d.logradouro;
+            document.getElementById('checkout_bairro').value = d.bairro;
+            document.getElementById('checkout_cidade').value = d.localidade;
+            document.getElementById('checkout_uf').value = d.uf;
+            enderecoEntregaTemp.cep = cep; // Atualiza para validação de frete
+            validarCepsIdenticos();
+        } else {
+            alert("CEP não encontrado.");
+        }
+    });
+}
+
+// 4. Ajuste na função de confirmar para preencher o novo campo de CEP
+function confirmarDadosExistentes() {
+    bootstrap.Modal.getInstance(document.getElementById('modalIdentificacao')).hide();
+    
+    document.getElementById('checkout_cpf').value = document.getElementById('cpf_identificacao').value;
+    document.getElementById('checkout_cep').value = enderecoEntregaTemp.cep || ""; // Preenche o novo campo
+    document.getElementById('checkout_telefone').value = enderecoEntregaTemp.telefone || "";
+    document.getElementById('checkout_rua').value = enderecoEntregaTemp.rua || "";
+    document.getElementById('checkout_numero').value = enderecoEntregaTemp.numero || "";
+    document.getElementById('checkout_bairro').value = enderecoEntregaTemp.bairro || "";
+    document.getElementById('checkout_cidade').value = enderecoEntregaTemp.cidade || "";
+    document.getElementById('checkout_uf').value = enderecoEntregaTemp.uf || "";
+    document.getElementById('checkout_complemento').value = enderecoEntregaTemp.complemento || "";
+    
+    new bootstrap.Modal(document.getElementById('modalCheckout')).show();
+    validarCepsIdenticos();
+}
+
+// 5. Corrigir o problema do botão de carrinho sumindo
+$(document).ready(function() {
+    // Garante que o botão flutuante reapareça ao fechar qualquer modal se houver itens
+    $('.modal').on('hidden.bs.modal', function () {
+        var c = JSON.parse(localStorage.getItem('carrinho')) || [];
+        if (c.length > 0) {
+            $('#btn_carrinho_flutuante').fadeIn();
+        }
+    });
+});
