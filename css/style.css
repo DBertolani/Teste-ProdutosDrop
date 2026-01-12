@@ -1,1 +1,24 @@
+/* css/style.css */
+:root {
+  --cor-principal: #0d6efd; 
+  --fonte-principal: 'Poppins', sans-serif;
+}
+body {
+  min-height: 75rem;
+  padding-top: 4.5rem;
+  font-family: var(--fonte-principal);
+}
+.bg-primary { background-color: var(--cor-principal) !important; }
+.text-primary { color: var(--cor-principal) !important; }
+.btn-primary { background-color: var(--cor-principal); border-color: var(--cor-principal); }
+.btn-outline-primary { color: var(--cor-principal); border-color: var(--cor-principal); }
+.btn-outline-primary:hover { background-color: var(--cor-principal); color: white; }
 
+.bd-placeholder-img { font-size: 1.125rem; text-anchor: middle; user-select: none; }
+@media (min-width: 768px) { .bd-placeholder-img-lg { font-size: 3.5rem; } }
+.carousel-item img { height: 400px; object-fit: contain; }
+@media (min-width: 768px) {
+  .container { max-width: 100%; }
+  .row { display: flex !important; flex-wrap: wrap !important; }
+  .col-md-3 { display: block !important; visibility: visible !important; opacity: 1 !important; }
+}
