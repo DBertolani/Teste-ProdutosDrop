@@ -3,6 +3,8 @@
 // --- 1. RESTAURAÇÃO: CONFIG E CATEGORIAS ---
 function carregar_config() {
    var url = CONFIG.SCRIPT_URL + "?rota=config&nocache=" + new Date().getTime();
+   
+   // Tenta carregar cache primeiro (pra ser rápido)
    var configCache = JSON.parse(localStorage.getItem('loja_config'));
    if(configCache) aplicar_config(configCache);
 
@@ -11,28 +13,68 @@ function carregar_config() {
     .then(data => {
         if(data.erro) return;
         var config = {};
+        // Garante que o formato da planilha (Array de chaves) vire um Objeto Javascript
         if(Array.isArray(data)) {
             data.forEach(l => { if(l.Chave && l.Valor) config[l.Chave] = l.Valor; });
         } else { config = data; }
+        
         localStorage.setItem("loja_config", JSON.stringify(config));
         aplicar_config(config);
     })
     .catch(e => console.log("Erro config", e));
 }
 
+// === AQUI ESTÁ A ÚNICA MUDANÇA IMPORTANTE ===
+// Esta função foi atualizada para preencher o SEO e o Logo corretamente
 function aplicar_config(config) {
-    if(config.NomeDoSite) {
-        document.title = config.NomeDoSite;
-        var logo = document.getElementById('logo_site');
-        if(logo) logo.innerText = config.NomeDoSite;
+    // 1. Cores
+    if(config.CorPrincipal) {
+        document.documentElement.style.setProperty('--cor-principal', config.CorPrincipal);
     }
-    if(config.CorPrincipal) document.documentElement.style.setProperty('--cor-principal', config.CorPrincipal);
-    if(config.LogoDoSite && config.LogoDoSite.trim() !== "") {
-        var logo = document.getElementById('logo_site');
-        var src = config.LogoDoSite.replace('/view', '/preview');
-        logo.innerHTML = `<img src="${src}" style="max-height:40px; margin-right:10px;"> ${config.NomeDoSite}`;
+
+    // 2. Título da Aba e SEO (Novidade)
+    // Se existir 'TituloAba' na planilha, usa ele. Se não, usa 'NomeDoSite'.
+    var titulo = config.TituloAba || config.NomeDoSite;
+    if(titulo) {
+        document.title = titulo; // Aba do navegador
+        var seoTitle = document.getElementById('seo_titulo');
+        if(seoTitle) seoTitle.innerText = titulo; // Tag oculta para o Google
+    }
+
+    // Descrição do Google (Meta Tag)
+    if(config.DescricaoSEO) {
+        var metaDesc = document.getElementById('seo_descricao');
+        if(metaDesc) metaDesc.setAttribute("content", config.DescricaoSEO);
+    }
+    
+    // Palavras Chave (Meta Tag)
+    if(config.PalavrasChave) {
+        var metaKeys = document.getElementById('seo_keywords');
+        if(metaKeys) metaKeys.setAttribute("content", config.PalavrasChave);
+    }
+
+    // Autor (Meta Tag)
+    if(config.AutorSite) {
+        var metaAuth = document.getElementById('seo_autor');
+        if(metaAuth) metaAuth.setAttribute("content", config.AutorSite);
+    }
+
+    // 3. Logo ou Nome do Site (Visual)
+    var logo = document.getElementById('logo_site');
+    if(logo) {
+        // Se tiver link de imagem na planilha
+        if(config.LogoDoSite && config.LogoDoSite.trim() !== "") {
+            // O código Backend já converte '/view' para visualização, mas garantimos aqui
+            var src = config.LogoDoSite.replace('/view', '/preview');
+            logo.innerHTML = `<img src="${src}" alt="${config.NomeDoSite}" style="max-height:40px; margin-right:10px;">`;
+        } 
+        // Se não tiver imagem, usa apenas texto
+        else if (config.NomeDoSite) {
+            logo.innerText = config.NomeDoSite;
+        }
     }
 }
+// ============================================
 
 function carregar_categorias(produtos) {
     const menu = document.getElementById('categoria_menu');
@@ -50,15 +92,12 @@ function carregar_categorias(produtos) {
     }
 }
 
-// --- 2. LÓGICA DE PRODUTOS E CARRINHO ---
+// --- 2. LÓGICA DE PRODUTOS E CARRINHO (Mantida Idêntica) ---
 function carregar_produtos() {
   var url = CONFIG.SCRIPT_URL + "?rota=produtos&nocache=" + new Date().getTime();
   fetch(url).then(r => r.json()).then(data => {
      localStorage.setItem("calçados", JSON.stringify(data));
-     
-     // MUDANÇA 1: Carrega o menu AQUI, com os dados completos
      carregar_categorias(data); 
-     
      mostrar_produtos(data);
   });
 }
@@ -73,7 +112,6 @@ function mostrar_produtos(produtos) {
   }
 
   produtos.forEach(p => {
-    // Adicionei ALT na imagem para Acessibilidade/SEO
     var altText = p.Produto + " - " + p.Categoria; 
     var infoExtra = p.Variacoes ? `<small>Opções disponíveis</small>` : '';
     
@@ -97,12 +135,8 @@ function mostrar_produtos(produtos) {
       </div>`;
     container.appendChild(item);
   });
-  
-  // MUDANÇA 2: REMOVI A LINHA QUE RECARREGAVA O MENU AQUI
-  // carregar_categorias(produtos); <--- NÃO EXISTE MAIS AQUI
 }
 
-// Adicione esta função extra no final do arquivo para o botão "Ver Todos" funcionar
 function limpar_filtros() {
     var dados = JSON.parse(localStorage.getItem('calçados')) || [];
     mostrar_produtos(dados);
