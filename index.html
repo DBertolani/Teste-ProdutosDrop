@@ -4,9 +4,11 @@
     <meta charset='utf-8'/>
     <meta content='width=device-width, initial-scale=1' name='viewport'/>
 
-    <title>Minha Loja Online</title> <meta property="og:title" content="Minha Loja Online - Confira o Catálogo">
+    <title>Minha Loja Online</title> 
+    <meta property="og:title" content="Minha Loja Online - Confira o Catálogo">
     <meta property="og:description" content="Os melhores produtos com os melhores preços. Clique e confira!">
-    <meta property="og:image" content="https://via.placeholder.com/600x315?text=Loja+Foto"> <title id="seo_titulo">Carregando Loja...</title>
+    
+    <title id="seo_titulo">Carregando Loja...</title>
     <meta id="seo_descricao" name='description' content='Catálogo de produtos online.'/>
     <meta id="seo_keywords" name='keywords' content='loja, vendas, catalogo'/>
     <meta id="seo_autor" name='author' content='Drop-to-Shop'/>
@@ -22,17 +24,18 @@
     <link href="css/style.css" rel="stylesheet"/>
 
     <style>
-      /* CORREÇÃO 1: Espaço no final para o carrinho não cobrir o conteúdo */
-      body {
-        padding-bottom: 120px; /* Adiciona espaço extra no final da rolagem */
+      body { padding-bottom: 120px; }
+      
+      /* Ajuste botão carrinho mobile */
+      @media (max-width: 576px) {
+        #btn_carrinho_flutuante { bottom: 20px; right: 20px; }
       }
 
-      /* CORREÇÃO 2: Ajuste fino no botão do carrinho para Mobile */
-      @media (max-width: 576px) {
-        #btn_carrinho_flutuante {
-          bottom: 20px; 
-          right: 20px;
-        }
+      /* Estilo para opção de tamanho selecionada */
+      .btn-check:checked + .btn-outline-secondary {
+          background-color: var(--cor-principal, #0d6efd);
+          color: white;
+          border-color: var(--cor-principal, #0d6efd);
       }
     </style>
   </head>
@@ -55,8 +58,7 @@
             <li class='nav-item'><a class='nav-link active' data-bs-target='#modalUsuario' data-bs-toggle='modal' href='#' id='btn_actualizar'>Atualizar Dados</a></li>
             <li class='nav-item dropdown'>
               <a aria-expanded='false' class='nav-link active dropdown-toggle' data-bs-toggle='dropdown' href='#' id='navbarDropdownMenuLink' role='button'>Categorias</a>
-              <ul aria-labelledby='navbarDropdownMenuLink' class='dropdown-menu' id='categoria_menu'>
-                </ul>
+              <ul aria-labelledby='navbarDropdownMenuLink' class='dropdown-menu' id='categoria_menu'></ul>
             </li>
           </ul>
           <form class='d-flex'>
@@ -72,7 +74,6 @@
         <button class='btn btn-danger btn-lg shadow rounded-pill' data-bs-target='#modalCarrito' data-bs-toggle='modal' onclick='$("#div_mensagem_venda").hide();' type='button'>
           🛒 <span class="d-none d-md-inline">Ver Carrinho</span>
         </button>
-        <br/>
         <div class="text-end mt-1">
              <span class="badge bg-primary shadow p-2" style="font-size: 0.9rem;" id='valorTotal'>R$ 0.00</span>
         </div>
@@ -80,7 +81,11 @@
       </div>
       
       <div class='bg-light p-3 rounded'>
-        <div id="loading_skeleton" class="row"></div>
+        <div id="loading_skeleton_container" class="text-center mt-5" style="display:none;">
+            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <h5 class="text-muted">Carregando produtos...</h5>
+            <div id="loading_skeleton_boxes" class="row text-start mt-4"></div>
+        </div>
         
         <div class='row' id='div_produtos'></div>
       </div>
@@ -94,26 +99,58 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <div id="carouselProduto" class="carousel carousel-dark slide" data-bs-ride="carousel">
-              <div class="carousel-inner" id="carouselImagensContainer"></div>
-              <button class="carousel-control-prev" type="button" data-bs-target="#carouselProduto" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Anterior</span>
-              </button>
-              <button class="carousel-control-next" type="button" data-bs-target="#carouselProduto" data-bs-slide="next">
-                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Próximo</span>
-              </button>
-            </div>
-            <div class="mt-4">
-                <h4 id="modalPreco" class="text-primary fw-bold mb-3"></h4>
-                <div id="modalVariacoes" class="mb-3"></div> <h6>Descrição:</h6>
-                <p id="modalDescricaoTexto"></p>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div id="carouselProduto" class="carousel carousel-dark slide" data-bs-ride="carousel">
+                        <div class="carousel-inner" id="carouselImagensContainer"></div>
+                        <button class="carousel-control-prev" type="button" data-bs-target="#carouselProduto" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#carouselProduto" data-bs-slide="next">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <h4 id="modalPreco" class="text-primary fw-bold mb-3"></h4>
+                    
+                    <div id="areaVariacoes" class="mb-3" style="display:none;">
+                        <h6>Escolha uma opção:</h6>
+                        <div id="listaVariacoes" class="d-flex flex-wrap gap-2"></div>
+                    </div>
+                    
+                    <div id="areaTabelaMedidas" class="mb-3" style="display:none;">
+                        <a href="#" class="text-decoration-none" data-bs-toggle="collapse" data-bs-target="#collapseMedidas">
+                            📏 Ver Tabela de Medidas
+                        </a>
+                        <div class="collapse mt-2" id="collapseMedidas">
+                            <img id="imgTabelaMedidas" src="" class="img-fluid border rounded">
+                        </div>
+                    </div>
+
+                    <div class="d-grid mb-4">
+                        <button type="button" class="btn btn-success btn-lg" id="btnAdicionarModal">Adicionar ao Carrinho</button>
+                    </div>
+
+                    <div class="card bg-light border-0 mb-3">
+                        <div class="card-body p-3">
+                            <h6 class="card-title">Simular Frete</h6>
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control" id="inputSimulaCep" placeholder="Seu CEP" maxlength="9">
+                                <button class="btn btn-outline-secondary" type="button" id="btnSimularFrete">Calcular</button>
+                            </div>
+                            <div id="resultadoFrete" class="small text-muted"></div>
+                        </div>
+                    </div>
+
+                    <h6>Descrição:</h6>
+                    <p id="modalDescricaoTexto" class="text-muted small"></p>
+                </div>
             </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-            <button type="button" class="btn btn-success" id="btnAdicionarModal">Adicionar ao Carrinho</button>
           </div>
         </div>
       </div>
