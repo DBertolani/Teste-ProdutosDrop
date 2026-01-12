@@ -243,6 +243,15 @@
           </div>
           <div class="modal-body">
             <form id="form-checkout">
+              <div id="aviso_cpf_encontrado" class="alert alert-info py-2 shadow-sm" style="display:none; font-size: 0.85rem;">
+                  <div class="d-flex justify-content-between align-items-center">
+                      <span><i class="bi bi-person-check-fill me-2"></i> Identificamos seus dados de compras anteriores.</span>
+                      <div class="btn-group btn-group-sm">
+                          <button type="button" class="btn btn-primary" id="btn_usar_dados_antigos">Usar Dados</button>
+                          <button type="button" class="btn btn-outline-secondary" onclick="$('#aviso_cpf_encontrado').fadeOut()">Ignorar</button>
+                      </div>
+                  </div>
+              </div>
               <h6 class="text-primary mb-3">Quem vai receber?</h6>
               <div class="row mb-3">
                 <div class="col-md-6"><label>CPF</label><input type="text" class="form-control" id="checkout_cpf" placeholder="000.000.000-00" required autocomplete="off"/></div>
