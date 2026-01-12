@@ -269,6 +269,18 @@
                 <div class="col-md-2"><label>UF</label><input type="text" class="form-control" id="checkout_uf" required readonly class="bg-light"/></div>
               </div>
               <div class="mb-3"><label>Complemento</label><input type="text" class="form-control" id="checkout_complemento" placeholder="Apto, Bloco, etc"/></div>
+            <div id="erro_cep_divergente" class="alert alert-danger mt-3 shadow-sm" style="display:none; font-size: 0.85rem;">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-shield-fill fs-4 me-2"></i>
+                        <div>
+                            <strong>CEP Divergente!</strong><br>
+                            O endereço de entrega não corresponde ao CEP calculado no carrinho.
+                            <button type="button" class="btn btn-sm btn-dark mt-2 d-block" onclick="corrigirCepDivergente()">
+                                Recalcular Frete para este endereço
+                            </button>
+                        </div>
+                    </div>
+                </div>            
             </form>
           </div>
           <div class="modal-footer justify-content-start">
