@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset='utf-8'/>
+    <meta content='width=device-width, initial-scale=1' name='viewport'/>
+    <meta content='Loja de Calçados' name='description'/>
+    <meta content='Anlusoft' name='author'/>
+    <title>Minha Loja Drop</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&amp;family=Roboto:wght@300;400;500&amp;display=swap" rel="stylesheet"/>
+    <link crossorigin='anonymous' href='https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css' integrity='sha384-KyZXEAg3QhqLMpG8r+8fhAXLRk2vvoC2f3B09zVXn8CA5QIVfZOJ3BCsw2P0p/We' rel='stylesheet'/>
+    
+    <style>
+      /* Estilos do Sistema */
+      :root {
+        --cor-principal: #0d6efd; 
+        --fonte-principal: 'Poppins', sans-serif;
+      }
+      body {
+        min-height: 75rem;
+        padding-top: 4.5rem;
+        font-family: var(--fonte-principal);
+      }
+      .bg-primary { background-color: var(--cor-principal) !important; }
+      .text-primary { color: var(--cor-principal) !important; }
+      .btn-primary { background-color: var(--cor-principal); border-color: var(--cor-principal); }
+      .btn-outline-primary { color: var(--cor-principal); border-color: var(--cor-principal); }
+      .btn-outline-primary:hover { background-color: var(--cor-principal); color: white; }
+      
+      .bd-placeholder-img { font-size: 1.125rem; text-anchor: middle; user-select: none; }
+      @media (min-width: 768px) { .bd-placeholder-img-lg { font-size: 3.5rem; } }
+      .carousel-item img { height: 400px; object-fit: contain; }
+      @media (min-width: 768px) {
+        .container { max-width: 100%; }
+        .row { display: flex !important; flex-wrap: wrap !important; }
+        .col-md-3 { display: block !important; visibility: visible !important; opacity: 1 !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js'></script>
+    <script crossorigin='anonymous' integrity='sha384-U1DAWAznBHeqEIlVSCgzq+c9gqGAJn5c/t99JyeKa9xxaYpSvHU5awsuZVVFIhvj' src='https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/js/bootstrap.bundle.min.js'></script>
+    <script src='https://sdk.mercadopago.com/js/v2'></script>
+    
+    <nav class='navbar navbar-expand-md navbar-dark fixed-top bg-primary'>
+      <div class='container-fluid'>
+        <a class='navbar-brand' href='#' id="logo_site">CATÁLOGO</a>
+        <button aria-controls='navbarCollapse' aria-expanded='false' aria-label='Toggle navigation' class='navbar-toggler' data-bs-target='#navbarCollapse' data-bs-toggle='collapse' type='button'>
+          <span class='navbar-toggler-icon'></span>
+        </button>
+        <div class='collapse navbar-collapse' id='navbarCollapse'>
+          <ul class='navbar-nav me-auto mb-2 mb-md-0'>
+            <li class='nav-item'><a class='nav-link active' data-bs-target='#modalUsuario' data-bs-toggle='modal' href='#' id='btn_registrarse'>Cadastre-se</a></li>
+            <li class='nav-item'><a class='nav-link active' data-bs-target='#modalLogin' data-bs-toggle='modal' href='#' id='btn_login'>Login</a></li>
+            <li class='nav-item'><a class='nav-link active' href='#' id='btn_logout'>Sair</a></li>
+            <li class='nav-item'><a class='nav-link active' data-bs-target='#modalUsuario' data-bs-toggle='modal' href='#' id='btn_actualizar'>Atualizar Dados</a></li>
+            <li class='nav-item dropdown'>
+              <a aria-expanded='false' class='nav-link active dropdown-toggle' data-bs-toggle='dropdown' href='#' id='navbarDropdownMenuLink' role='button'>Categorias</a>
+              <ul aria-labelledby='navbarDropdownMenuLink' class='dropdown-menu' id='categoria_menu'>
+                </ul>
+            </li>
+          </ul>
+          <form class='d-flex'>
+            <input aria-label='Buscar Produtos' class='form-control me-2' id='txt_search' placeholder='Buscar...' type='search'/>
+            <button class='btn btn-light' onclick='imprimir_produtos("Nome","0");' type='button'>🔍</button>
+          </form>
+        </div>
+      </div>
+    </nav>
+    
+    <main class='container'>
+      <div style='position: fixed;right: 10px; bottom: 10px; z-index:9999'>
+        <button class='btn btn-danger btn-lg shadow' data-bs-target='#modalCarrito' data-bs-toggle='modal' onclick='$("#div_mensagem_venda").hide();' type='button'>
+          🛒 Ver Carrinho
+        </button>
+        <br/>
+        <button class='btn btn-primary active mt-2 shadow' type='button'> <span id='valorTotal'>R$ 0.00</span></button>
+        <div class='alert alert-danger' id='alert_carrinho' role='alert'></div>
+      </div>
+      
+      <div class='bg-light p-3 rounded'>
+        <div class='row' id='div_produtos'></div>
+      </div>
+    </main>
+
+    <div class="modal fade" id="modalProduto" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalTituloProduto">Produto</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="carouselProduto" class="carousel slide" data-bs-ride="carousel">
+              <div class="carousel-inner" id="carouselImagensContainer"></div>
+              <button class="carousel-control-prev" type="button" data-bs-target="#carouselProduto" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Anterior</span>
+              </button>
+              <button class="carousel-control-next" type="button" data-bs-target="#carouselProduto" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Próximo</span>
+              </button>
+            </div>
+            <div class="mt-4">
+                <h4 id="modalPreco" class="text-primary fw-bold mb-3"></h4>
+                <div id="modalVariacoes" class="mb-3"></div> <h6>Descrição:</h6>
+                <p id="modalDescricaoTexto"></p>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            <button type="button" class="btn btn-success" id="btnAdicionarModal">Adicionar ao Carrinho</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class='modal' id='modalLogin' tabindex='-1'>
+      <div class='modal-dialog'>
+        <div class='modal-content'>
+          <div class='modal-header'><h5 class='modal-title'>Login</h5><button class='btn-close' data-bs-dismiss='modal'></button></div>
+          <div class='modal-body'>
+            <form id='form-login'>
+              <div class='mb-3'><label class='form-label'>E-mail</label><input class='form-control' id='login_email' required type='email'/></div>
+              <div class='mb-3'><label class='form-label'>Senha</label><input class='form-control' id='login_password' required type='password'/></div>
+              <div class='d-grid'><button class='btn btn-primary' type='submit'>Entrar</button></div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class='modal' id='modalUsuario' tabindex='-1'>
+      <div class='modal-dialog'>
+        <div class='modal-content'>
+          <div class='modal-header'><h5 class='modal-title'>Cadastro</h5><button class='btn-close' data-bs-dismiss='modal'></button></div>
+          <div class='modal-body'>
+            <form id='form-registro'>
+              <div class='row'>
+                <div class='mb-3 col-6'><label>Nome</label><input class='form-control' id='nombre' required type='text'/></div>
+                <div class='mb-3 col-6'><label>Sobrenome</label><input class='form-control' id='apellido' required type='text'/></div>
+              </div>
+              <div class='mb-3'><label>Documento</label><input class='form-control' id='documento' required type='text'/></div>
+              <div class='mb-3'><label>E-mail</label><input class='form-control' id='email' required type='email'/></div>
+              <div class='mb-3'><label>Usuário</label><input class='form-control' id='user' required type='text'/></div>
+              <div class='mb-3'><label>Senha</label><input class='form-control' id='password' required type='password'/></div>
+              <div class='d-grid'><button class='btn btn-primary' type='submit'>Cadastrar</button></div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class='modal' id='modalCarrito' tabindex='-1'>
+      <div class='modal-dialog'>
+        <div class='modal-content'>
+          <div class='modal-header'>
+            <h5 class='modal-title'>Carrinho de Compras</h5>
+            <button aria-label='Close' class='btn-close' data-bs-dismiss='modal' type='button'></button>
+          </div>
+          <div class='modal-body'>
+            <div id='div_carrito'></div>
+            <div class='alert alert-danger' id='alert_carrito' role='alert'></div>
+            <div id='div_frete_original'></div> 
+            
+            <h4 class='text-end mt-3'>Total: <span id='total_carro'>R$ 0.00</span></h4>
+            <div class='d-grid'>
+              <button class='btn btn-success' id='btn_pagar' type='button' data-bs-toggle='modal' data-bs-target='#modalCheckout'>Finalizar Compra</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="modalCheckout" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Dados de Entrega e Pagamento</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="form-checkout">
+              <h6 class="text-primary mb-3">Quem vai receber?</h6>
+              <div class="row mb-3">
+                <div class="col-md-6"><label>CPF</label><input type="text" class="form-control" id="checkout_cpf" placeholder="000.000.000-00" required/></div>
+                <div class="col-md-6"><label>Telefone</label><input type="text" class="form-control" id="checkout_telefone" placeholder="(XX) 9XXXX-XXXX" required/></div>
+              </div>
+              <h6 class="text-primary mb-3 mt-4">Endereço de Entrega</h6>
+              <div class="row mb-2">
+                <div class="col-md-4"><label>CEP</label><input type="text" class="form-control" id="checkout_cep" onblur="pesquisarCep(this.value);" required/></div>
+                <div class="col-md-8"><div id="msg_cep" class="form-text">Digite o CEP para buscar.</div></div>
+              </div>
+              <div class="row mb-2">
+                <div class="col-md-9"><label>Rua</label><input type="text" class="form-control" id="checkout_rua" required/></div>
+                <div class="col-md-3"><label>Número</label><input type="text" class="form-control" id="checkout_numero" required/></div>
+              </div>
+              <div class="row mb-2">
+                <div class="col-md-5"><label>Bairro</label><input type="text" class="form-control" id="checkout_bairro" required/></div>
+                <div class="col-md-5"><label>Cidade</label><input type="text" class="form-control" id="checkout_cidade" required/></div>
+                <div class="col-md-2"><label>UF</label><input type="text" class="form-control" id="checkout_uf" required/></div>
+              </div>
+              <div class="mb-3"><label>Complemento</label><input type="text" class="form-control" id="checkout_complemento"/></div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Voltar</button>
+            <button type="button" class="btn btn-success btn-lg" onclick="iniciarPagamento()">Ir para Pagamento</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <script type='text/javascript'>
+        // URL do seu Script Google - IMPORTANTE: VERIFIQUE SE ESTÁ ATUALIZADA
+        var urlScript = "https://script.google.com/macros/s/AKfycbzRULFJ7Lr3QwfQJnkILtt53IMtOYKtalsWF-91-a2LpCm-KSXJNgQMVe20BbTPNCTaIQ/exec";
+
+        // --- 1. RESTAURAÇÃO: CONFIG E CATEGORIAS ---
+        function carregar_config() {
+           var url = urlScript + "?rota=config&nocache=" + new Date().getTime();
+           var configCache = JSON.parse(localStorage.getItem('loja_config'));
+           if(configCache) aplicar_config(configCache);
+
+           fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                if(data.erro) return;
+                var config = {};
+                if(Array.isArray(data)) {
+                    data.forEach(l => { if(l.Chave && l.Valor) config[l.Chave] = l.Valor; });
+                } else { config = data; }
+                localStorage.setItem("loja_config", JSON.stringify(config));
+                aplicar_config(config);
+            })
+            .catch(e => console.log("Erro config", e));
+        }
+
+        function aplicar_config(config) {
+            if(config.NomeDoSite) {
+                document.title = config.NomeDoSite;
+                var logo = document.getElementById('logo_site');
+                if(logo) logo.innerText = config.NomeDoSite;
+            }
+            if(config.CorPrincipal) document.documentElement.style.setProperty('--cor-principal', config.CorPrincipal);
+            if(config.LogoDoSite && config.LogoDoSite.trim() !== "") {
+                var logo = document.getElementById('logo_site');
+                var src = config.LogoDoSite.replace('/view', '/preview');
+                logo.innerHTML = `<img src="${src}" style="max-height:40px; margin-right:10px;"> ${config.NomeDoSite}`;
+            }
+        }
+
+        function carregar_categorias(produtos) {
+            const menu = document.getElementById('categoria_menu');
+            if(!menu) return;
+            menu.innerHTML = ''; 
+            const categorias = [...new Set(produtos.map(p => p.Categoria))].filter(c => c); 
+            
+            if(categorias.length === 0) menu.innerHTML = '<li><a class="dropdown-item" href="#">Sem categorias</a></li>';
+            else {
+                categorias.forEach(cat => {
+                    var li = document.createElement('li');
+                    li.innerHTML = `<a class="dropdown-item" href="#" onclick="print_productos('Categoria', '${cat}')">${cat}</a>`;
+                    menu.appendChild(li);
+                });
+            }
+        }
+
+        // --- 2. LÓGICA DE PRODUTOS E CARRINHO ---
+        function carregar_produtos() {
+          var url = urlScript + "?rota=produtos&nocache=" + new Date().getTime();
+          fetch(url).then(r => r.json()).then(data => {
+             localStorage.setItem("calçados", JSON.stringify(data));
+             mostrar_produtos(data);
+          });
+        }
+
+        function mostrar_produtos(produtos) {
+          const container = document.getElementById('div_produtos');
+          container.innerHTML = '';
+          produtos.forEach(p => {
+            var infoExtra = p.Variacoes ? `<small>Opções disponíveis</small>` : '';
+            
+            const item = document.createElement('div');
+            item.className = 'col-md-3 mt-4';
+            item.innerHTML = `
+              <div class="card shadow-sm h-100">
+                  <img class="bd-placeholder-img card-img-top" src="${p.ImagemPrincipal}" style="height: 200px; object-fit: cover;"/>
+                  <div class="card-body d-flex flex-column">
+                      <p class="card-text">
+                          <strong>${p.Produto}</strong><br/>
+                          <span class="text-primary fw-bold">R$ ${parseFloat(p.Preço).toFixed(2)}</span><br/>
+                          <small class="text-muted">${p.Categoria}</small><br/>
+                          ${infoExtra}
+                      </p>
+                      <div class="mt-auto btn-group">
+                          <button class="btn btn-sm btn-outline-primary" onclick="abrir_modal_ver('${p.ID}')">Ver Detalhes</button>
+                          <button class="btn btn-sm btn-primary" onclick="adicionar_carrinho('${p.ID}','${p.Produto}','${p.Preço}','${p.ImagemPrincipal}')">Comprar</button>
+                      </div>
+                  </div>
+              </div>`;
+            container.appendChild(item);
+          });
+          carregar_categorias(produtos);
+        }
+
+        function abrir_modal_ver(id) {
+            var dados = JSON.parse(localStorage.getItem('calçados')) || [];
+            var produto = dados.find(p => p.ID === id);
+            if (!produto) return;
+
+            document.getElementById('modalTituloProduto').innerText = produto.Produto;
+            document.getElementById('modalPreco').innerText = 'R$ ' + parseFloat(produto.Preço).toFixed(2);
+            document.getElementById('modalDescricaoTexto').innerText = produto.Descrição || "";
+
+            var containerImagens = document.getElementById('carouselImagensContainer');
+            containerImagens.innerHTML = '';
+            var imgs = [produto.ImagemPrincipal];
+            if(produto.ImagensExtras) imgs = imgs.concat(produto.ImagensExtras.split(',').map(s=>s.trim()));
+            
+            imgs.forEach((src, i) => {
+                if(src.length > 4) {
+                    var div = document.createElement('div');
+                    div.className = i===0 ? 'carousel-item active' : 'carousel-item';
+                    div.innerHTML = `<img src="${src}" class="d-block w-100" style="margin:0 auto;">`;
+                    containerImagens.appendChild(div);
+                }
+            });
+
+            document.getElementById('btnAdicionarModal').onclick = function() {
+                adicionar_carrinho(produto.ID, produto.Produto, produto.Preço, produto.ImagemPrincipal);
+                bootstrap.Modal.getInstance(document.getElementById('modalProduto')).hide();
+            };
+
+            new bootstrap.Modal(document.getElementById('modalProduto')).show();
+        }
+
+        function adicionar_carrinho(id, prod, preco, img) {
+            var c = JSON.parse(localStorage.getItem('carrinho')) || [];
+            var existe = c.find(i => i.id === id);
+            if(existe) existe.quantidade++; else c.push({id, producto:prod, preco, imagem:img, quantidade:1});
+            localStorage.setItem('carrinho', JSON.stringify(c));
+            atualizar_carrinho();
+        }
+        function remover_carrinho(id) {
+            var c = JSON.parse(localStorage.getItem('carrinho'));
+            c.splice(c.findIndex(i => i.id === id), 1);
+            localStorage.setItem('carrinho', JSON.stringify(c));
+            atualizar_carrinho();
+        }
+        function atualizar_carrinho() {
+            var c = JSON.parse(localStorage.getItem('carrinho')) || [];
+            var div = document.getElementById('div_carrito');
+            div.innerHTML = '';
+            var total = 0;
+            c.forEach(i => {
+                var row = document.createElement('div');
+                row.className = 'd-flex justify-content-between mb-2';
+                row.innerHTML = `<span>${i.producto} (${i.quantidade})</span><span>R$ ${(i.preco*i.quantidade).toFixed(2)} <button class="btn btn-sm btn-danger" onclick="remover_carrinho('${i.id}')">x</button></span>`;
+                div.appendChild(row);
+                total += i.preco * i.quantidade;
+            });
+            document.getElementById('total_carro').innerText = 'R$ ' + total.toFixed(2);
+        }
+        
+        function print_productos(tipo, valor) {
+            var dados = JSON.parse(localStorage.getItem('calçados')) || [];
+            var filtro = dados;
+            if(tipo === 'Categoria') filtro = dados.filter(p => p.Categoria === valor);
+            if(tipo === 'Pesquisa') filtro = dados.filter(p => p.Produto.toLowerCase().includes(valor.toLowerCase()));
+            mostrar_produtos(filtro);
+        }
+
+        // --- 3. PAGAMENTO E VIACEP ---
+        function pesquisarCep(valor) {
+            var cep = valor.replace(/\D/g, '');
+            if (cep != "") {
+                var script = document.createElement('script');
+                script.src = 'https://viacep.com.br/ws/'+ cep + '/json/?callback=meu_callback_cep';
+                document.body.appendChild(script);
+            }
+        }
+        function meu_callback_cep(conteudo) {
+            if (!("erro" in conteudo)) {
+                document.getElementById('checkout_rua').value=(conteudo.logradouro);
+                document.getElementById('checkout_bairro').value=(conteudo.bairro);
+                document.getElementById('checkout_cidade').value=(conteudo.localidade);
+                document.getElementById('checkout_uf').value=(conteudo.uf);
+                document.getElementById('checkout_numero').focus();
+            } else { alert("CEP não encontrado."); }
+        }
+
+        function iniciarPagamento() {
+            var cliente = {
+                cpf: document.getElementById('checkout_cpf').value,
+                telefone: document.getElementById('checkout_telefone').value,
+                cep: document.getElementById('checkout_cep').value,
+                rua: document.getElementById('checkout_rua').value,
+                numero: document.getElementById('checkout_numero').value,
+                bairro: document.getElementById('checkout_bairro').value,
+                cidade: document.getElementById('checkout_cidade').value,
+                uf: document.getElementById('checkout_uf').value,
+                complemento: document.getElementById('checkout_complemento').value
+            };
+            if (!cliente.cpf || !cliente.rua || !cliente.numero) {
+                alert("Preencha CPF, Rua e Número."); return;
+            }
+            
+            var carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
+            if (carrinho.length === 0) { alert("Carrinho vazio!"); return; }
+
+            var btn = event.target;
+            btn.innerText = "Processando...";
+            btn.disabled = true;
+
+            var items = carrinho.map(i => ({title: i.producto, quantity: i.quantidade, currency_id: 'BRL', unit_price: parseFloat(i.preco)}));
+            
+            fetch(urlScript, {
+                method: 'POST',
+                body: JSON.stringify({cliente: cliente, items: items})
+            })
+            .then(r => r.text())
+            .then(link => { window.location.href = link; })
+            .catch(e => { console.error(e); alert("Erro ao processar."); btn.innerText = "Tentar Novamente"; btn.disabled = false; });
+        }
+
+        $(document).ready(function() {
+            carregar_config();
+            carregar_produtos();
+            atualizar_carrinho();
+        });
+    </script>
+  </body>
+</html>
