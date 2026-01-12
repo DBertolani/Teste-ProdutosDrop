@@ -21,6 +21,7 @@ function carregar_config() {
     .catch(e => console.log("Erro config", e));
 }
 
+
 function aplicar_config(config) {
     if(config.CorPrincipal) document.documentElement.style.setProperty('--cor-principal', config.CorPrincipal);
 
