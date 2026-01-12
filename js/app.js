@@ -10,16 +10,18 @@ function mascaraCep(t) {
     t.value = v;
 }
 
-// --- 1. CONFIGURAÇÕES INICIAIS ---
+// --- 1. CONFIGURAÇÕES INICIAIS (AJUSTE CIRÚRGICO AQUI) ---
 function carregar_config() {
    var url = CONFIG.SCRIPT_URL + "?rota=config&nocache=" + new Date().getTime();
    
+   // Primeiro: Tenta carregar do Cache para ser instantâneo
    var configCache = JSON.parse(localStorage.getItem('loja_config'));
    if(configCache) {
        CONFIG_LOJA = configCache;
        aplicar_config();
    }
 
+   // Segundo: Busca na planilha e ATUALIZA o cache e a tela
    fetch(url)
     .then(res => res.json())
     .then(data => {
@@ -33,12 +35,14 @@ function carregar_config() {
         CONFIG_LOJA = config;
         aplicar_config();
         
-        if(document.getElementById('div_produtos').innerHTML !== "") {
-            var produtosCache = JSON.parse(localStorage.getItem('calçados'));
-            if(produtosCache) mostrar_produtos(produtosCache);
-        }
+        // DISPARO OBRIGATÓRIO: Carrega os produtos após ter a configuração
+        carregar_produtos();
     })
-    .catch(e => console.log("Erro config", e));
+    .catch(e => {
+        console.log("Erro config", e);
+        // Se a internet falhar, tenta carregar produtos mesmo assim
+        carregar_produtos();
+    });
 }
 
 function aplicar_config() {
@@ -78,10 +82,16 @@ function carregar_categorias(produtos) {
     if(categorias.length > 0) {
         categorias.forEach(cat => {
             var li = document.createElement('li');
-            li.innerHTML = `<a class="dropdown-item" href="#" onclick="print_productos('Categoria', '${cat}'); fechar_menu_mobile()">${cat}</a>`;
+            li.innerHTML = `<a class="dropdown-item" href="#" onclick="mostrar_produtos_por_categoria('${cat}'); fechar_menu_mobile()">${cat}</a>`;
             menu.appendChild(li);
         });
     }
+}
+
+function mostrar_produtos_por_categoria(cat) {
+    var dados = JSON.parse(localStorage.getItem('calçados')) || [];
+    var filtrados = dados.filter(p => p.Categoria === cat);
+    mostrar_produtos(filtrados);
 }
 
 function fechar_menu_mobile() {
@@ -264,7 +274,6 @@ function selecionar_variacao(valor) {
     variacaoSelecionada = valor;
 }
 
-// --- Lógica Simulador Individual ---
 function simular_frete_produto_individual(produto) {
     var cep = document.getElementById('inputSimulaCepIndividual').value.replace(/\D/g, '');
     if (cep.length !== 8) { alert("CEP inválido"); return; }
@@ -278,7 +287,6 @@ function simular_frete_produto_individual(produto) {
 
     var subsidio = parseFloat(CONFIG_LOJA.SubsidioFrete || 0);
 
-    // Usa dados da planilha para o produto individual
     var dadosFrete = {
         op: "calcular_frete",
         cep: cep,
@@ -343,7 +351,7 @@ function simular_frete_produto_individual(produto) {
 }
 
 
-// --- 5. CARRINHO (LÓGICA DO CARRINHO + FRETE) ---
+// --- 5. CARRINHO ---
 
 var freteCalculado = 0;
 var freteSelecionadoNome = "";
@@ -375,24 +383,14 @@ function adicionar_carrinho(id, prod, preco, img, freteGratisUF, variacao) {
     bloquearCheckout(true);
 }
 
-// NOVA FUNÇÃO: EDITAR ITEM (Remove e abre modal)
 function editar_item_carrinho(idComVariacao) {
-    // 1. Encontrar o item para pegar o ID original do produto
     var c = JSON.parse(localStorage.getItem('carrinho')) || [];
     var item = c.find(i => i.id === idComVariacao);
     
     if (item) {
-        // O ID no carrinho é "0001_38". O ID do produto é "0001".
         var idProdutoOriginal = idComVariacao.split('_')[0];
-        
-        // 2. Remove do carrinho
         remover_carrinho(idComVariacao);
-        
-        // 3. Fecha modal do carrinho
         bootstrap.Modal.getInstance(document.getElementById('modalCarrito')).hide();
-        
-        // 4. Abre modal do produto para ele escolher de novo
-        // Pequeno delay para transição de modal
         setTimeout(() => {
             abrir_modal_ver(idProdutoOriginal);
         }, 500);
@@ -446,7 +444,6 @@ function atualizar_carrinho() {
         var row = document.createElement('div');
         row.className = 'd-flex justify-content-between align-items-center mb-3 border-bottom pb-2';
         
-        // Botoes de Ação
         var btnEditar = (i.variacao && i.variacao !== 'Único')
             ? `<button class="btn btn-sm btn-outline-primary me-1" onclick="editar_item_carrinho('${i.id}')" title="Editar Opção"><i class="bi bi-pencil"></i></button>`
             : '';
@@ -520,46 +517,26 @@ function calcularFreteCarrinho() {
     divOpcoes.innerHTML = "Calculando...";
     bloquearCheckout(true);
 
-    // --- CÁLCULO DE PESO E DIMENSÕES TOTAIS ---
-    // Precisamos buscar os dados originais (Peso, Medidas) de cada item no carrinho
     var todosProdutos = JSON.parse(localStorage.getItem('calçados')) || [];
-    
     var pesoTotal = 0;
     var volumeTotal = 0;
 
     carrinho.forEach(item => {
-        // item.id é tipo "0001_40". O split pega só o "0001".
         var prodOriginal = todosProdutos.find(p => p.ID == item.id.split('_')[0]);
-        
         if (prodOriginal) {
-            // Usa valores da planilha ou defaults de segurança
-            var p = parseFloat(prodOriginal.Peso || 0.9);
-            var a = parseFloat(prodOriginal.Altura || 15);
-            var l = parseFloat(prodOriginal.Largura || 20);
-            var c = parseFloat(prodOriginal.Comprimento || 20);
-            
-            // Soma peso multiplicado pela quantidade
-            pesoTotal += (p * item.quantidade);
-            
-            // Soma volume (cm3) multiplicado pela quantidade
-            volumeTotal += (a * l * c) * item.quantidade;
+            pesoTotal += (parseFloat(prodOriginal.Peso || 0.9) * item.quantidade);
+            volumeTotal += (parseFloat(prodOriginal.Altura || 15) * parseFloat(prodOriginal.Largura || 20) * parseFloat(prodOriginal.Comprimento || 20)) * item.quantidade;
         } else {
-            // Fallback se algo der errado
             pesoTotal += (0.9 * item.quantidade);
             volumeTotal += (6000 * item.quantidade);
         }
     });
 
-    // Estima uma caixa cúbica para o volume total
-    // Raiz cúbica do volume total nos dá a aresta média de uma caixa que cabe tudo
     var aresta = Math.pow(volumeTotal, 1/3);
-    
-    // Limites mínimos dos Correios (aprox 15x10x15)
     var alturaFinal = Math.max(15, Math.ceil(aresta));
     var larguraFinal = Math.max(15, Math.ceil(aresta));
     var compFinal = Math.max(20, Math.ceil(aresta));
 
-    // Monta o payload real
     var dadosFrete = {
         op: "calcular_frete",
         cep: cep,
@@ -568,8 +545,6 @@ function calcularFreteCarrinho() {
         altura: alturaFinal, 
         largura: larguraFinal
     };
-
-    var subsidio = parseFloat(CONFIG_LOJA.SubsidioFrete || 0);
 
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
@@ -582,13 +557,12 @@ function calcularFreteCarrinho() {
         } else if (data.opcoes) {
             var estadoDestino = enderecoEntregaTemp.uf || ""; 
             var html = '<div class="list-group">';
+            var subsidio = parseFloat(CONFIG_LOJA.SubsidioFrete || 0);
             
             data.opcoes.forEach((op, index) => {
                var ehGratis = false;
                if(estadoDestino) {
-                   ehGratis = carrinho.some(item => {
-                       return item.freteGratisUF && item.freteGratisUF.includes(estadoDestino);
-                   });
+                   ehGratis = carrinho.some(item => item.freteGratisUF && item.freteGratisUF.includes(estadoDestino));
                }
 
                var valorFinal = parseFloat(op.valor);
@@ -624,33 +598,23 @@ function calcularFreteCarrinho() {
             html += '</div>';
             divOpcoes.innerHTML = html;
         }
-    })
-    .catch(e => {
-        console.error(e);
-        divOpcoes.innerHTML = "Erro ao calcular.";
     });
 }
 
 function selecionarFrete(input) {
     freteCalculado = parseFloat(input.value);
     freteSelecionadoNome = input.getAttribute('data-nome');
-    
     var c = JSON.parse(localStorage.getItem('carrinho')) || [];
     var subtotal = c.reduce((acc, i) => acc + (i.preco * i.quantidade), 0);
     atualizarTotalFinal(subtotal);
-    
     bloquearCheckout(false);
 }
 
 function bloquearCheckout(bloquear) {
     var btn = document.getElementById('btn_pagar');
     var msg = document.getElementById('msg_falta_frete');
-    btn.disabled = bloquear;
-    if(bloquear) {
-        msg.style.display = 'block';
-    } else {
-        msg.style.display = 'none';
-    }
+    if(btn) btn.disabled = bloquear;
+    if(msg) msg.style.display = bloquear ? 'block' : 'none';
 }
 
 // --- 7. CHECKOUT FINAL ---
@@ -663,7 +627,6 @@ function irParaCheckout() {
         document.getElementById('checkout_bairro').value = enderecoEntregaTemp.bairro;
         document.getElementById('checkout_cidade').value = enderecoEntregaTemp.localidade;
         document.getElementById('checkout_uf').value = enderecoEntregaTemp.uf;
-        
         setTimeout(() => document.getElementById('checkout_numero').focus(), 500);
     }
     
@@ -674,9 +637,6 @@ function irParaCheckout() {
 $(document).on('blur', '#checkout_cpf', function() {
     var cpf = $(this).val().replace(/\D/g, '');
     if (cpf.length === 11) {
-        var campoStatus = $(this);
-        campoStatus.addClass('is-loading'); // Opcional: feedback visual
-
         fetch(CONFIG.SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ op: "buscar_cliente", cpf: cpf })
@@ -692,14 +652,11 @@ $(document).on('blur', '#checkout_cpf', function() {
                     document.getElementById('checkout_cidade').value = dados.cidade || "";
                     document.getElementById('checkout_uf').value = dados.uf || "";
                     document.getElementById('checkout_complemento').value = dados.complemento || "";
-                    // Se o cliente quiser mudar o destinatário, ele pode editar os campos após carregar
                 }
             }
-        })
-        .catch(e => console.error("Erro ao buscar cliente:", e));
+        });
     }
 });
-
 
 function iniciarPagamentoFinal() {
     var cliente = {
@@ -711,9 +668,7 @@ function iniciarPagamentoFinal() {
         bairro: document.getElementById('checkout_bairro').value,
         cidade: document.getElementById('checkout_cidade').value,
         uf: document.getElementById('checkout_uf').value,
-        complemento: document.getElementById('checkout_complemento').value,
-        // Pegamos o email do cadastro se existir, ou do campo (ajuste conforme seu HTML)
-        email: document.getElementById('email') ? document.getElementById('email').value : "" 
+        complemento: document.getElementById('checkout_complemento').value
     };
 
     if (!cliente.cpf || !cliente.rua || !cliente.numero) {
@@ -727,9 +682,7 @@ function iniciarPagamentoFinal() {
     var carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
     var items = carrinho.map(i => {
         var tituloCompleto = i.producto;
-        if(i.variacao && i.variacao !== "Único") {
-            tituloCompleto += " - " + i.variacao;
-        }
+        if(i.variacao && i.variacao !== "Único") tituloCompleto += " - " + i.variacao;
         return {
             title: tituloCompleto, 
             quantity: i.quantity, 
@@ -747,28 +700,41 @@ function iniciarPagamentoFinal() {
         });
     }
 
-    // --- NOVA PARTE: PREPARA DADOS LOGÍSTICOS ---
+    // DADOS LOGÍSTICOS PARA PLANILHA
     var logisticaInfo = {
-        servico: freteSelecionadoNome, // Ex: "PAC" ou "SEDEX"
+        servico: freteSelecionadoNome,
         peso: (carrinho.reduce((t, i) => t + (i.quantidade * 0.9), 0)).toFixed(2),
         dimensoes: "Calculado via Carrinho"
     };
 
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
-        // Adicionamos 'logistica' no corpo do envio
-        body: JSON.stringify({
-            cliente: cliente, 
-            items: items, 
-            logistica: logisticaInfo 
-        })
+        body: JSON.stringify({cliente: cliente, items: items, logistica: logisticaInfo})
     })
     .then(r => r.text())
     .then(link => { window.location.href = link; })
     .catch(e => { 
-        console.error(e); 
         alert("Erro ao processar."); 
         btn.innerText = "Tentar Novamente"; 
         btn.disabled = false; 
     });
 }
+
+// --- 8. INICIALIZAÇÃO ---
+document.addEventListener("DOMContentLoaded", function(){
+    carregar_config();
+    atualizar_carrinho();
+
+    const modais = ['modalProduto', 'modalCarrito', 'modalCheckout', 'modalLogin', 'modalUsuario'];
+    const btnFloat = document.getElementById('btn_carrinho_flutuante');
+
+    modais.forEach(id => {
+        var el = document.getElementById(id);
+        if(el) {
+            el.addEventListener('show.bs.modal', () => { if(btnFloat) btnFloat.style.display = 'none'; });
+            el.addEventListener('hidden.bs.modal', () => { 
+                if(!document.querySelector('.modal.show') && btnFloat) btnFloat.style.display = 'block'; 
+            });
+        }
+    });
+});
