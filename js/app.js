@@ -644,6 +644,7 @@ $(document).on('blur', '#checkout_cpf', function() {
         .then(r => r.json())
         .then(dados => {
             if (dados.encontrado) {
+                enderecoEntregaTemp.cep = dados.cep; // <-- ADICIONADO AQUI para a segurança funcionar
                 // Exibe o aviso bonito em vez do confirm do navegador
                 $("#aviso_cpf_encontrado").fadeIn();
                 
@@ -758,3 +759,39 @@ $(document).on('change', '#carrinho_cep', function() {
     document.getElementById('carrinho_opcoes_frete').innerHTML = '<span class="text-danger">CEP alterado. Recalcule o frete para continuar.</span>';
     bloquearCheckout(true);
 });
+
+
+// FUNÇÃO PARA COMPARAR OS CEPS E TRAVAR O PAGAMENTO
+function validarCepsIdenticos() {
+    var cepCalculado = document.getElementById('carrinho_cep').value.replace(/\D/g, '');
+    // Pegamos o CEP que veio dos dados do cliente (enderecoEntregaTemp é preenchido no buscar_cliente)
+    var cepEntrega = enderecoEntregaTemp.cep ? enderecoEntregaTemp.cep.replace(/\D/g, '') : "";
+
+    if (cepEntrega !== "" && cepEntrega !== cepCalculado) {
+        $("#erro_cep_divergente").fadeIn();
+        // Trava o botão de pagamento final para evitar erro de valor
+        document.querySelector('#modalCheckout .btn-success').disabled = true;
+    } else {
+        $("#erro_cep_divergente").fadeOut();
+        document.querySelector('#modalCheckout .btn-success').disabled = false;
+    }
+}
+
+// FUNÇÃO PARA CORRIGIR: Leva o usuário de volta para validar o frete correto
+function corrigirCepDivergente() {
+    var novoCep = enderecoEntregaTemp.cep;
+    document.getElementById('carrinho_cep').value = novoCep;
+    
+    // Fecha o checkout e volta para o carrinho
+    bootstrap.Modal.getInstance(document.getElementById('modalCheckout')).hide();
+    new bootstrap.Modal(document.getElementById('modalCarrito')).show();
+    
+    // Dispara o cálculo automático para o novo CEP
+    calcularFreteCarrinho();
+    
+    // Notificação elegante de sucesso na troca
+    const alertCarro = document.getElementById('alert_carrinho');
+    alertCarro.innerText = "CEP atualizado conforme seu endereço. Escolha o frete novamente.";
+    alertCarro.style.display = 'block';
+    setTimeout(() => { alertCarro.style.display = 'none'; }, 4000);
+}
