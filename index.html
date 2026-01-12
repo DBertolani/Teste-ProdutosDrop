@@ -4,7 +4,9 @@
     <meta charset='utf-8'/>
     <meta content='width=device-width, initial-scale=1' name='viewport'/>
 
-    <title id="seo_titulo">Carregando Loja...</title>
+    <title>Minha Loja Online</title> <meta property="og:title" content="Minha Loja Online - Confira o Catálogo">
+    <meta property="og:description" content="Os melhores produtos com os melhores preços. Clique e confira!">
+    <meta property="og:image" content="https://via.placeholder.com/600x315?text=Loja+Foto"> <title id="seo_titulo">Carregando Loja...</title>
     <meta id="seo_descricao" name='description' content='Catálogo de produtos online.'/>
     <meta id="seo_keywords" name='keywords' content='loja, vendas, catalogo'/>
     <meta id="seo_autor" name='author' content='Drop-to-Shop'/>
@@ -18,6 +20,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&amp;family=Roboto:wght@300;400;500&amp;display=swap" rel="stylesheet"/>
     <link crossorigin='anonymous' href='https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css' integrity='sha384-KyZXEAg3QhqLMpG8r+8fhAXLRk2vvoC2f3B09zVXn8CA5QIVfZOJ3BCsw2P0p/We' rel='stylesheet'/>
     <link href="css/style.css" rel="stylesheet"/>
+
+    <style>
+      /* CORREÇÃO 1: Espaço no final para o carrinho não cobrir o conteúdo */
+      body {
+        padding-bottom: 120px; /* Adiciona espaço extra no final da rolagem */
+      }
+
+      /* CORREÇÃO 2: Ajuste fino no botão do carrinho para Mobile */
+      @media (max-width: 576px) {
+        #btn_carrinho_flutuante {
+          bottom: 20px; 
+          right: 20px;
+        }
+      }
+    </style>
   </head>
   <body>
     
@@ -51,12 +68,14 @@
     </nav>
     
     <main class='container'>
-      <div style='position: fixed;right: 10px; bottom: 10px; z-index:9999'>
-        <button class='btn btn-danger btn-lg shadow' data-bs-target='#modalCarrito' data-bs-toggle='modal' onclick='$("#div_mensagem_venda").hide();' type='button'>
-          🛒 Ver Carrinho
+      <div id="btn_carrinho_flutuante" style='position: fixed; right: 10px; bottom: 10px; z-index:9999'>
+        <button class='btn btn-danger btn-lg shadow rounded-pill' data-bs-target='#modalCarrito' data-bs-toggle='modal' onclick='$("#div_mensagem_venda").hide();' type='button'>
+          🛒 <span class="d-none d-md-inline">Ver Carrinho</span>
         </button>
         <br/>
-        <button class='btn btn-primary active mt-2 shadow' type='button'> <span id='valorTotal'>R$ 0.00</span></button>
+        <div class="text-end mt-1">
+             <span class="badge bg-primary shadow p-2" style="font-size: 0.9rem;" id='valorTotal'>R$ 0.00</span>
+        </div>
         <div class='alert alert-danger' id='alert_carrinho' role='alert'></div>
       </div>
       
