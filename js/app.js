@@ -1,4 +1,4 @@
-// js/app.js - Versão Otimizada (Lazy Load + Skeleton)
+// js/app.js - Versão Final Otimizada
 
 // --- 1. CONFIG E CATEGORIAS ---
 function carregar_config() {
@@ -73,34 +73,30 @@ function carregar_categorias(produtos) {
 
 // --- 2. LÓGICA DE PRODUTOS E CARRINHO ---
 function carregar_produtos() {
-  mostrar_skeleton(true); // Começa mostrando o esqueleto
+  mostrar_skeleton(true);
   
   var url = CONFIG.SCRIPT_URL + "?rota=produtos&nocache=" + new Date().getTime();
   fetch(url).then(r => r.json()).then(data => {
-     mostrar_skeleton(false); // Esconde o esqueleto quando os dados chegam
+     mostrar_skeleton(false); 
      localStorage.setItem("calçados", JSON.stringify(data));
      carregar_categorias(data); 
      mostrar_produtos(data);
   });
 }
 
-// PERFORMANCE: Função visual para dar sensação de rapidez
 function mostrar_skeleton(exibir) {
     const skel = document.getElementById('loading_skeleton');
     if(!skel) return;
     
     if(exibir) {
         skel.innerHTML = '';
-        // Cria 4 cartões "falsos" cinzas para simular conteúdo
         for(let i=0; i<4; i++) {
             skel.innerHTML += `
-            <div class="col-md-3 mt-4">
-                <div class="card shadow-sm h-100 border-0" aria-hidden="true">
-                    <div class="card-img-top bg-secondary" style="height: 200px; opacity:0.1; animation: pulse 1.5s infinite;"></div>
+            <div class="col-md-3 mt-4 col-6"> <div class="card shadow-sm h-100 border-0" aria-hidden="true">
+                    <div class="card-img-top bg-secondary" style="height: 150px; opacity:0.1; animation: pulse 1.5s infinite;"></div>
                     <div class="card-body">
                         <h5 class="card-title placeholder-glow"><span class="placeholder col-6"></span></h5>
-                        <p class="card-text placeholder-glow"><span class="placeholder col-7"></span> <span class="placeholder col-4"></span></p>
-                        <a href="#" class="btn btn-primary disabled placeholder col-6"></a>
+                        <p class="card-text placeholder-glow"><span class="placeholder col-7"></span></p>
                     </div>
                 </div>
             </div>`;
@@ -125,22 +121,27 @@ function mostrar_produtos(produtos) {
     var infoExtra = p.Variacoes ? `<small>Opções disponíveis</small>` : '';
     
     const item = document.createElement('div');
-    item.className = 'col-md-3 mt-4';
+    // CORREÇÃO: No celular, ocupa 6 colunas (2 produtos por linha) se quiser, ou mantem 12. 
+    // Vou manter col-12 (1 por linha) que é mais seguro para detalhes, ou você pode mudar para col-6.
+    item.className = 'col-md-3 col-12 mt-4'; 
     
-    // PERFORMANCE: loading="lazy" nas imagens
+    // CORREÇÃO: object-fit: contain (NÃO CORTA A IMAGEM)
+    // padding: 10px (Para a imagem não colar na borda)
     item.innerHTML = `
       <div class="card shadow-sm h-100">
-          <img class="bd-placeholder-img card-img-top" src="${p.ImagemPrincipal}" alt="${altText}" loading="lazy" style="height: 200px; object-fit: cover;"/>
+          <div style="height: 250px; display: flex; align-items: center; justify-content: center; background: #fff;">
+             <img src="${p.ImagemPrincipal}" alt="${altText}" loading="lazy" style="max-height: 100%; max-width: 100%; object-fit: contain; padding: 10px;"/>
+          </div>
           <div class="card-body d-flex flex-column">
               <p class="card-text">
                   <strong>${p.Produto}</strong><br/>
-                  <span class="text-primary fw-bold">R$ ${parseFloat(p.Preço).toFixed(2)}</span><br/>
+                  <span class="text-primary fw-bold" style="font-size: 1.2rem;">R$ ${parseFloat(p.Preço).toFixed(2)}</span><br/>
                   <small class="text-muted">${p.Categoria}</small><br/>
                   ${infoExtra}
               </p>
-              <div class="mt-auto btn-group">
-                  <button class="btn btn-sm btn-outline-primary" aria-label="Ver detalhes de ${p.Produto}" onclick="abrir_modal_ver('${p.ID}')">Ver Detalhes</button>
-                  <button class="btn btn-sm btn-primary" aria-label="Comprar ${p.Produto}" onclick="adicionar_carrinho('${p.ID}','${p.Produto}','${p.Preço}','${p.ImagemPrincipal}')">Comprar</button>
+              <div class="mt-auto btn-group w-100">
+                  <button class="btn btn-outline-primary w-50" onclick="abrir_modal_ver('${p.ID}')">Ver</button>
+                  <button class="btn btn-primary w-50" onclick="adicionar_carrinho('${p.ID}','${p.Produto}','${p.Preço}','${p.ImagemPrincipal}')">Comprar</button>
               </div>
           </div>
       </div>`;
@@ -172,7 +173,8 @@ function abrir_modal_ver(id) {
         if(src.length > 4) {
             var div = document.createElement('div');
             div.className = i===0 ? 'carousel-item active' : 'carousel-item';
-            div.innerHTML = `<img src="${src}" class="d-block w-100" style="margin:0 auto;">`;
+            // Imagem do Modal também com CONTAIN para não cortar
+            div.innerHTML = `<img src="${src}" class="d-block w-100" style="height: 300px; object-fit: contain; background: #f8f9fa;">`;
             containerImagens.appendChild(div);
         }
     });
@@ -205,12 +207,29 @@ function atualizar_carrinho() {
     var total = 0;
     c.forEach(i => {
         var row = document.createElement('div');
-        row.className = 'd-flex justify-content-between mb-2';
-        row.innerHTML = `<span>${i.producto} (${i.quantidade})</span><span>R$ ${(i.preco*i.quantidade).toFixed(2)} <button class="btn btn-sm btn-danger" onclick="remover_carrinho('${i.id}')">x</button></span>`;
+        row.className = 'd-flex justify-content-between mb-2 border-bottom pb-2';
+        row.innerHTML = `
+        <div class="d-flex align-items-center">
+            <img src="${i.imagem}" style="width:50px; height:50px; object-fit:cover; margin-right:10px; border-radius:5px;">
+            <div>
+                <div style="font-size:0.9rem; font-weight:bold;">${i.producto}</div>
+                <div style="font-size:0.8rem;">Qtd: ${i.quantidade}</div>
+            </div>
+        </div>
+        <div class="text-end">
+             <div style="font-weight:bold;">R$ ${(i.preco*i.quantidade).toFixed(2)}</div>
+             <button class="btn btn-sm btn-outline-danger mt-1" onclick="remover_carrinho('${i.id}')" style="padding: 0px 6px;">Remover</button>
+        </div>`;
         div.appendChild(row);
         total += i.preco * i.quantidade;
     });
+    
+    // Atualiza o total no Modal
     document.getElementById('total_carro').innerText = 'R$ ' + total.toFixed(2);
+    
+    // Atualiza o total no botão flutuante (NOVO)
+    var btnTotal = document.getElementById('valorTotal');
+    if(btnTotal) btnTotal.innerText = 'R$ ' + total.toFixed(2);
 }
 
 function print_productos(tipo, valor) {
@@ -274,8 +293,7 @@ function iniciarPagamento() {
     .catch(e => { console.error(e); alert("Erro ao processar."); btn.innerText = "Tentar Novamente"; btn.disabled = false; });
 }
 
-// PERFORMANCE: Animação CSS para o Skeleton
-// Adicionado via JS para não obrigar você a mexer no CSS
+// Animação CSS para o Skeleton
 var style = document.createElement('style');
 style.innerHTML = `
 @keyframes pulse {
