@@ -1,4 +1,4 @@
-// js/app.js - Versão Final Otimizada
+// js/app.js - Versão Final (UX Mobile Corrigida)
 
 // --- 1. CONFIG E CATEGORIAS ---
 function carregar_config() {
@@ -20,7 +20,6 @@ function carregar_config() {
     })
     .catch(e => console.log("Erro config", e));
 }
-
 
 function aplicar_config(config) {
     if(config.CorPrincipal) document.documentElement.style.setProperty('--cor-principal', config.CorPrincipal);
@@ -56,19 +55,35 @@ function aplicar_config(config) {
     }
 }
 
+// CORREÇÃO UX: Menu Categorias
 function carregar_categorias(produtos) {
     const menu = document.getElementById('categoria_menu');
     if(!menu) return;
-    menu.innerHTML = ''; 
+    
+    // 1. Adiciona a opção "Ver Todos" fixa no topo
+    menu.innerHTML = `<li><a class="dropdown-item fw-bold" href="#" onclick="limpar_filtros(); fechar_menu_mobile()">Ver Todos</a></li>`;
+    menu.innerHTML += `<li><hr class="dropdown-divider"></li>`;
+    
     const categorias = [...new Set(produtos.map(p => p.Categoria))].filter(c => c); 
     
-    if(categorias.length === 0) menu.innerHTML = '<li><a class="dropdown-item" href="#">Sem categorias</a></li>';
-    else {
+    if(categorias.length === 0) {
+         // Mantém apenas o Ver Todos se não houver categorias
+    } else {
         categorias.forEach(cat => {
             var li = document.createElement('li');
-            li.innerHTML = `<a class="dropdown-item" href="#" onclick="print_productos('Categoria', '${cat}')">${cat}</a>`;
+            // 2. Adiciona fechar_menu_mobile() ao clicar na categoria
+            li.innerHTML = `<a class="dropdown-item" href="#" onclick="print_productos('Categoria', '${cat}'); fechar_menu_mobile()">${cat}</a>`;
             menu.appendChild(li);
         });
+    }
+}
+
+// CORREÇÃO UX: Função para fechar o menu no celular automaticamente
+function fechar_menu_mobile() {
+    var navMain = document.getElementById("navbarCollapse");
+    // Se o menu estiver aberto (classe 'show'), clica no botão para fechar
+    if (navMain.classList.contains('show')) {
+        document.querySelector('.navbar-toggler').click();
     }
 }
 
@@ -93,7 +108,8 @@ function mostrar_skeleton(exibir) {
         skel.innerHTML = '';
         for(let i=0; i<4; i++) {
             skel.innerHTML += `
-            <div class="col-md-3 mt-4 col-6"> <div class="card shadow-sm h-100 border-0" aria-hidden="true">
+            <div class="col-md-3 mt-4 col-6"> 
+                <div class="card shadow-sm h-100 border-0" aria-hidden="true">
                     <div class="card-img-top bg-secondary" style="height: 150px; opacity:0.1; animation: pulse 1.5s infinite;"></div>
                     <div class="card-body">
                         <h5 class="card-title placeholder-glow"><span class="placeholder col-6"></span></h5>
@@ -122,12 +138,9 @@ function mostrar_produtos(produtos) {
     var infoExtra = p.Variacoes ? `<small>Opções disponíveis</small>` : '';
     
     const item = document.createElement('div');
-    // CORREÇÃO: No celular, ocupa 6 colunas (2 produtos por linha) se quiser, ou mantem 12. 
-    // Vou manter col-12 (1 por linha) que é mais seguro para detalhes, ou você pode mudar para col-6.
     item.className = 'col-md-3 col-12 mt-4'; 
     
-    // CORREÇÃO: object-fit: contain (NÃO CORTA A IMAGEM)
-    // padding: 10px (Para a imagem não colar na borda)
+    // OBS: Imagens com CONTAIN para não cortar
     item.innerHTML = `
       <div class="card shadow-sm h-100">
           <div style="height: 250px; display: flex; align-items: center; justify-content: center; background: #fff;">
@@ -174,7 +187,6 @@ function abrir_modal_ver(id) {
         if(src.length > 4) {
             var div = document.createElement('div');
             div.className = i===0 ? 'carousel-item active' : 'carousel-item';
-            // Imagem do Modal também com CONTAIN para não cortar
             div.innerHTML = `<img src="${src}" class="d-block w-100" style="height: 300px; object-fit: contain; background: #f8f9fa;">`;
             containerImagens.appendChild(div);
         }
@@ -225,10 +237,8 @@ function atualizar_carrinho() {
         total += i.preco * i.quantidade;
     });
     
-    // Atualiza o total no Modal
     document.getElementById('total_carro').innerText = 'R$ ' + total.toFixed(2);
     
-    // Atualiza o total no botão flutuante (NOVO)
     var btnTotal = document.getElementById('valorTotal');
     if(btnTotal) btnTotal.innerText = 'R$ ' + total.toFixed(2);
 }
@@ -308,4 +318,17 @@ $(document).ready(function() {
     carregar_config();
     carregar_produtos();
     atualizar_carrinho();
+
+    // --- CORREÇÃO UX: Sumir Carrinho quando abrir Modal do Produto ---
+    var modalProduto = document.getElementById('modalProduto');
+    if(modalProduto) {
+        modalProduto.addEventListener('show.bs.modal', function () {
+            // Quando modal ESTÁ ABRINDO -> Esconde Carrinho
+            document.getElementById('btn_carrinho_flutuante').style.display = 'none';
+        });
+        modalProduto.addEventListener('hidden.bs.modal', function () {
+            // Quando modal TERMINOU DE FECHAR -> Mostra Carrinho
+            document.getElementById('btn_carrinho_flutuante').style.display = 'block';
+        });
+    }
 });
