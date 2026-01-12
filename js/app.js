@@ -55,6 +55,10 @@ function carregar_produtos() {
   var url = CONFIG.SCRIPT_URL + "?rota=produtos&nocache=" + new Date().getTime();
   fetch(url).then(r => r.json()).then(data => {
      localStorage.setItem("calçados", JSON.stringify(data));
+     
+     // MUDANÇA 1: Carrega o menu AQUI, com os dados completos
+     carregar_categorias(data); 
+     
      mostrar_produtos(data);
   });
 }
@@ -62,14 +66,22 @@ function carregar_produtos() {
 function mostrar_produtos(produtos) {
   const container = document.getElementById('div_produtos');
   container.innerHTML = '';
+  
+  if(produtos.length === 0) {
+      container.innerHTML = '<div class="col-12 text-center mt-5"><p class="text-muted">Nenhum produto encontrado.</p><button class="btn btn-outline-secondary" onclick="limpar_filtros()">Ver Todos</button></div>';
+      return;
+  }
+
   produtos.forEach(p => {
+    // Adicionei ALT na imagem para Acessibilidade/SEO
+    var altText = p.Produto + " - " + p.Categoria; 
     var infoExtra = p.Variacoes ? `<small>Opções disponíveis</small>` : '';
     
     const item = document.createElement('div');
     item.className = 'col-md-3 mt-4';
     item.innerHTML = `
       <div class="card shadow-sm h-100">
-          <img class="bd-placeholder-img card-img-top" src="${p.ImagemPrincipal}" style="height: 200px; object-fit: cover;"/>
+          <img class="bd-placeholder-img card-img-top" src="${p.ImagemPrincipal}" alt="${altText}" style="height: 200px; object-fit: cover;"/>
           <div class="card-body d-flex flex-column">
               <p class="card-text">
                   <strong>${p.Produto}</strong><br/>
@@ -78,14 +90,23 @@ function mostrar_produtos(produtos) {
                   ${infoExtra}
               </p>
               <div class="mt-auto btn-group">
-                  <button class="btn btn-sm btn-outline-primary" onclick="abrir_modal_ver('${p.ID}')">Ver Detalhes</button>
-                  <button class="btn btn-sm btn-primary" onclick="adicionar_carrinho('${p.ID}','${p.Produto}','${p.Preço}','${p.ImagemPrincipal}')">Comprar</button>
+                  <button class="btn btn-sm btn-outline-primary" aria-label="Ver detalhes de ${p.Produto}" onclick="abrir_modal_ver('${p.ID}')">Ver Detalhes</button>
+                  <button class="btn btn-sm btn-primary" aria-label="Comprar ${p.Produto}" onclick="adicionar_carrinho('${p.ID}','${p.Produto}','${p.Preço}','${p.ImagemPrincipal}')">Comprar</button>
               </div>
           </div>
       </div>`;
     container.appendChild(item);
   });
-  carregar_categorias(produtos);
+  
+  // MUDANÇA 2: REMOVI A LINHA QUE RECARREGAVA O MENU AQUI
+  // carregar_categorias(produtos); <--- NÃO EXISTE MAIS AQUI
+}
+
+// Adicione esta função extra no final do arquivo para o botão "Ver Todos" funcionar
+function limpar_filtros() {
+    var dados = JSON.parse(localStorage.getItem('calçados')) || [];
+    mostrar_produtos(dados);
+    document.getElementById('txt_search').value = "";
 }
 
 function abrir_modal_ver(id) {
