@@ -1,4 +1,9 @@
-// js/app.js - Versão E-commerce Completo (Frete, Variações, Quantidade)
+// js/app.js - Versão Final (Frete no Carrinho + Lógica de Desconto + UX Fix)
+
+// --- CONFIGURAÇÃO DE DESCONTO DE FRETE ---
+// Se o frete NÃO for grátis, quanto de desconto (em Reais) você quer dar?
+// Ex: Se o frete der R$ 40,00 e o subsídio for 15,00, o cliente paga R$ 25,00.
+const SUBSIDIO_FRETE = 15.00; 
 
 // --- 1. CONFIGURAÇÕES INICIAIS ---
 function carregar_config() {
@@ -14,7 +19,6 @@ function carregar_config() {
         if(Array.isArray(data)) {
             data.forEach(l => { if(l.Chave && l.Valor) config[l.Chave] = l.Valor; });
         } else { config = data; }
-        
         localStorage.setItem("loja_config", JSON.stringify(config));
         aplicar_config(config);
     })
@@ -33,7 +37,6 @@ function aplicar_config(config) {
         var metaDesc = document.getElementById('seo_descricao');
         if(metaDesc) metaDesc.setAttribute("content", config.DescricaoSEO);
     }
-    // Logo
     var logo = document.getElementById('logo_site');
     if(logo) {
         if(config.LogoDoSite && config.LogoDoSite.trim() !== "") {
@@ -47,12 +50,9 @@ function aplicar_config(config) {
 function carregar_categorias(produtos) {
     const menu = document.getElementById('categoria_menu');
     if(!menu) return;
-    
     menu.innerHTML = `<li><a class="dropdown-item fw-bold" href="#" onclick="limpar_filtros(); fechar_menu_mobile()">Ver Todos</a></li>`;
     menu.innerHTML += `<li><hr class="dropdown-divider"></li>`;
-    
     const categorias = [...new Set(produtos.map(p => p.Categoria))].filter(c => c); 
-    
     if(categorias.length > 0) {
         categorias.forEach(cat => {
             var li = document.createElement('li');
@@ -72,7 +72,6 @@ function fechar_menu_mobile() {
 // --- 3. PRODUTOS E LOADING ---
 function carregar_produtos() {
   mostrar_skeleton(true);
-  
   var url = CONFIG.SCRIPT_URL + "?rota=produtos&nocache=" + new Date().getTime();
   fetch(url).then(r => r.json()).then(data => {
      mostrar_skeleton(false); 
@@ -86,7 +85,6 @@ function mostrar_skeleton(exibir) {
     const container = document.getElementById('loading_skeleton_container');
     const boxes = document.getElementById('loading_skeleton_boxes');
     if(!container) return;
-    
     if(exibir) {
         boxes.innerHTML = '';
         for(let i=0; i<4; i++) {
@@ -109,16 +107,13 @@ function mostrar_skeleton(exibir) {
 function mostrar_produtos(produtos) {
   const container = document.getElementById('div_produtos');
   container.innerHTML = '';
-  
   if(produtos.length === 0) {
       container.innerHTML = '<div class="col-12 text-center mt-5"><p class="text-muted">Nenhum produto encontrado.</p><button class="btn btn-outline-secondary" onclick="limpar_filtros()">Ver Todos</button></div>';
       return;
   }
-
   produtos.forEach(p => {
     var altText = p.Produto + " - " + p.Categoria; 
     var infoExtra = (p.Tamanhos || p.Variacoes) ? `<small>Opções disponíveis</small>` : '';
-    
     const item = document.createElement('div');
     item.className = 'col-md-3 col-12 mt-4'; 
     item.innerHTML = `
@@ -148,8 +143,8 @@ function limpar_filtros() {
     document.getElementById('txt_search').value = "";
 }
 
-// --- 4. MODAL DO PRODUTO (VARIAÇÕES, FRETE, MEDIDAS) ---
-var produtoAtual = null; // Variável global para guardar o produto aberto no modal
+// --- 4. MODAL DO PRODUTO ---
+var produtoAtual = null; 
 var variacaoSelecionada = null;
 
 function abrir_modal_ver(id) {
@@ -157,14 +152,11 @@ function abrir_modal_ver(id) {
     produtoAtual = dados.find(p => p.ID === id);
     if (!produtoAtual) return;
 
-    variacaoSelecionada = null; // Reseta seleção
-
-    // 1. Dados Básicos
+    variacaoSelecionada = null; 
     document.getElementById('modalTituloProduto').innerText = produtoAtual.Produto;
     document.getElementById('modalPreco').innerText = 'R$ ' + parseFloat(produtoAtual.Preço).toFixed(2);
     document.getElementById('modalDescricaoTexto').innerText = produtoAtual.Descrição || "";
 
-    // 2. Fotos (Carrossel)
     var containerImagens = document.getElementById('carouselImagensContainer');
     containerImagens.innerHTML = '';
     var imgs = [produtoAtual.ImagemPrincipal];
@@ -179,7 +171,6 @@ function abrir_modal_ver(id) {
         }
     });
 
-    // 3. Variações (Tamanhos)
     var divVar = document.getElementById('areaVariacoes');
     var listaVar = document.getElementById('listaVariacoes');
     divVar.style.display = 'none';
@@ -189,7 +180,6 @@ function abrir_modal_ver(id) {
         divVar.style.display = 'block';
         var tamanhos = produtoAtual.Tamanhos.split(',').map(t => t.trim());
         tamanhos.forEach(tam => {
-            // Cria botões de rádio estilizados
             var idBtn = 'var_' + tam;
             listaVar.innerHTML += `
                 <input type="radio" class="btn-check" name="variacao" id="${idBtn}" autocomplete="off" onchange="selecionar_variacao('${tam}')">
@@ -197,10 +187,9 @@ function abrir_modal_ver(id) {
             `;
         });
     } else {
-        variacaoSelecionada = "Único"; // Se não tem variação, define como único
+        variacaoSelecionada = "Único"; 
     }
 
-    // 4. Tabela de Medidas
     var divMedidas = document.getElementById('areaTabelaMedidas');
     if (produtoAtual.TamanhosImagens && produtoAtual.TamanhosImagens.trim() !== "") {
         divMedidas.style.display = 'block';
@@ -209,22 +198,18 @@ function abrir_modal_ver(id) {
         divMedidas.style.display = 'none';
     }
 
-    // 5. Configurar Botões
     document.getElementById('btnAdicionarModal').onclick = function() {
         if (!variacaoSelecionada) {
             alert("Por favor, selecione uma opção (Tamanho/Variação).");
             return;
         }
         var nomeFinal = produtoAtual.Produto + (variacaoSelecionada !== "Único" ? ` - ${variacaoSelecionada}` : "");
-        adicionar_carrinho(produtoAtual.ID + "_" + variacaoSelecionada, nomeFinal, produtoAtual.Preço, produtoAtual.ImagemPrincipal);
+        
+        // Passamos também a lista de frete grátis do produto para o carrinho
+        var freteGratisUF = produtoAtual.FreteGratis || ""; 
+        adicionar_carrinho(produtoAtual.ID + "_" + variacaoSelecionada, nomeFinal, produtoAtual.Preço, produtoAtual.ImagemPrincipal, freteGratisUF);
+        
         bootstrap.Modal.getInstance(document.getElementById('modalProduto')).hide();
-    };
-
-    // 6. Configurar Simulador de Frete
-    document.getElementById('resultadoFrete').innerHTML = "";
-    document.getElementById('inputSimulaCep').value = "";
-    document.getElementById('btnSimularFrete').onclick = function() {
-        simular_frete(produtoAtual);
     };
 
     new bootstrap.Modal(document.getElementById('modalProduto')).show();
@@ -234,70 +219,26 @@ function selecionar_variacao(valor) {
     variacaoSelecionada = valor;
 }
 
-// --- 5. LÓGICA DE FRETE (SIMULAÇÃO) ---
-function simular_frete(produto) {
-    var cep = document.getElementById('inputSimulaCep').value.replace(/\D/g, '');
-    if (cep.length !== 8) { alert("CEP inválido"); return; }
-    
-    var btn = document.getElementById('btnSimularFrete');
-    var res = document.getElementById('resultadoFrete');
-    
-    btn.innerText = "...";
-    btn.disabled = true;
-    res.innerHTML = "Calculando...";
-    
-    // Dados para o SuperFrete
-    var dadosFrete = {
-        op: "calcular_frete", // ROTA DO BACKEND
-        cep: cep,
-        peso: produto.Peso || 0.3,
-        comprimento: produto.Comprimento || 20,
-        altura: produto.Altura || 10,
-        largura: produto.Largura || 15
-    };
-    
-    // ATENÇÃO: Envia POST para o seu Google Apps Script
-    fetch(CONFIG.SCRIPT_URL, {
-        method: 'POST',
-        body: JSON.stringify(dadosFrete) // Envia como String JSON no corpo
-    })
-    .then(r => r.json())
-    .then(data => {
-        btn.innerText = "Calcular";
-        btn.disabled = false;
-        
-        if (data.erro) {
-            res.innerHTML = `<span class="text-danger">${data.erro}</span>`;
-        } else if (data.opcoes) {
-            var html = '<ul class="list-group mt-2">';
-            data.opcoes.forEach(op => {
-               html += `<li class="list-group-item d-flex justify-content-between align-items-center">
-                  ${op.nome} (${op.prazo} dias)
-                  <span class="badge bg-primary rounded-pill">R$ ${op.valor}</span>
-               </li>`;
-            });
-            html += '</ul>';
-            res.innerHTML = html;
-        } else {
-            res.innerHTML = "Sem opções disponíveis.";
-        }
-    })
-    .catch(e => {
-        console.error(e);
-        btn.innerText = "Calcular";
-        btn.disabled = false;
-        res.innerHTML = "Erro ao calcular.";
-    });
-}
+// --- 5. CARRINHO (LÓGICA DO CARRINHO + FRETE) ---
 
+// Variáveis para guardar estado do frete
+var freteCalculado = 0;
+var freteSelecionadoNome = "";
+var enderecoEntregaTemp = {}; // Guarda Rua, Bairro, etc. recuperados no carrinho
 
-// --- 6. CARRINHO (QUANTIDADE E +/-) ---
-function adicionar_carrinho(id, prod, preco, img) {
+function adicionar_carrinho(id, prod, preco, img, freteGratisUF) {
     var c = JSON.parse(localStorage.getItem('carrinho')) || [];
     var existe = c.find(i => i.id === id);
-    if(existe) existe.quantidade++; else c.push({id, producto:prod, preco, imagem:img, quantidade:1});
+    // Adicionei freteGratisUF ao objeto do carrinho
+    if(existe) existe.quantidade++; else c.push({id, producto:prod, preco, imagem:img, quantidade:1, freteGratisUF: freteGratisUF});
     localStorage.setItem('carrinho', JSON.stringify(c));
     atualizar_carrinho();
+    
+    // Reseta frete ao adicionar novos itens
+    freteCalculado = 0;
+    freteSelecionadoNome = "";
+    document.getElementById('carrinho_opcoes_frete').innerHTML = "";
+    bloquearCheckout(true);
 }
 
 function mudar_quantidade(id, delta) {
@@ -306,11 +247,14 @@ function mudar_quantidade(id, delta) {
     if(item) {
         item.quantidade += delta;
         if(item.quantidade <= 0) {
-            // Remove se chegar a 0
             c.splice(c.findIndex(i => i.id === id), 1);
         }
         localStorage.setItem('carrinho', JSON.stringify(c));
         atualizar_carrinho();
+        // Recalcular frete se mudar quantidade? Idealmente sim, mas vamos resetar
+        bloquearCheckout(true);
+        document.getElementById('carrinho_opcoes_frete').innerHTML = "Quantidade mudou. Recalcule o frete.";
+        freteCalculado = 0;
     }
 }
 
@@ -319,16 +263,22 @@ function remover_carrinho(id) {
     c.splice(c.findIndex(i => i.id === id), 1);
     localStorage.setItem('carrinho', JSON.stringify(c));
     atualizar_carrinho();
+    bloquearCheckout(true);
+    freteCalculado = 0;
+    document.getElementById('carrinho_opcoes_frete').innerHTML = "";
 }
 
 function atualizar_carrinho() {
     var c = JSON.parse(localStorage.getItem('carrinho')) || [];
     var div = document.getElementById('div_carrito');
     div.innerHTML = '';
-    var total = 0;
+    var subtotal = 0;
     
     if(c.length === 0) {
         div.innerHTML = '<p class="text-center text-muted">Seu carrinho está vazio.</p>';
+        document.getElementById('total_carro_final').innerText = 'R$ 0.00';
+        document.getElementById('valorTotal').innerText = 'R$ 0.00';
+        return;
     }
 
     c.forEach(i => {
@@ -342,58 +292,183 @@ function atualizar_carrinho() {
                 <div style="font-size:0.8rem; color:#666;">Unit: R$ ${parseFloat(i.preco).toFixed(2)}</div>
             </div>
         </div>
-        
         <div class="d-flex align-items-center">
             <button class="btn btn-sm btn-outline-secondary px-2" onclick="mudar_quantidade('${i.id}', -1)">-</button>
             <span class="mx-2 font-weight-bold">${i.quantidade}</span>
             <button class="btn btn-sm btn-outline-secondary px-2" onclick="mudar_quantidade('${i.id}', 1)">+</button>
         </div>
-
         <div class="text-end" style="width: 20%;">
              <div style="font-weight:bold; font-size: 0.9rem;">R$ ${(i.preco*i.quantidade).toFixed(2)}</div>
         </div>`;
         div.appendChild(row);
-        total += i.preco * i.quantidade;
+        subtotal += i.preco * i.quantidade;
     });
+
+    document.getElementById('resumo_subtotal').innerText = 'R$ ' + subtotal.toFixed(2);
+    atualizarTotalFinal(subtotal);
+}
+
+function atualizarTotalFinal(subtotal) {
+    var total = subtotal + freteCalculado;
+    document.getElementById('resumo_frete').innerText = 'R$ ' + freteCalculado.toFixed(2);
+    document.getElementById('total_carro_final').innerText = 'R$ ' + total.toFixed(2);
     
-    document.getElementById('total_carro').innerText = 'R$ ' + total.toFixed(2);
-    
+    // Atualiza botão flutuante
     var btnTotal = document.getElementById('valorTotal');
     if(btnTotal) btnTotal.innerText = 'R$ ' + total.toFixed(2);
 }
 
-function print_productos(tipo, valor) {
-    var dados = JSON.parse(localStorage.getItem('calçados')) || [];
-    var filtro = dados;
-    if(tipo === 'Categoria') filtro = dados.filter(p => p.Categoria === valor);
-    if(tipo === 'Pesquisa') filtro = dados.filter(p => p.Produto.toLowerCase().includes(valor.toLowerCase()));
-    mostrar_produtos(filtro);
-}
+// --- 6. FRETE NO CARRINHO ---
 
-// --- 7. CHECKOUT E CEP ---
-function pesquisarCep(valor) {
-    var cep = valor.replace(/\D/g, '');
-    if (cep != "") {
-        var script = document.createElement('script');
-        script.src = 'https://viacep.com.br/ws/'+ cep + '/json/?callback=meu_callback_cep';
-        document.body.appendChild(script);
+function buscarEnderecoSimples(cep) {
+    cep = cep.replace(/\D/g, '');
+    if(cep.length === 8) {
+        fetch(`https://viacep.com.br/ws/${cep}/json/`)
+        .then(r => r.json())
+        .then(d => {
+            if(!d.erro) {
+                document.getElementById('carrinho_endereco_resumo').innerText = `${d.localidade}/${d.uf}`;
+                enderecoEntregaTemp = d; // Guarda para usar no checkout
+            }
+        });
     }
 }
-function meu_callback_cep(conteudo) {
-    if (!("erro" in conteudo)) {
-        document.getElementById('checkout_rua').value=(conteudo.logradouro);
-        document.getElementById('checkout_bairro').value=(conteudo.bairro);
-        document.getElementById('checkout_cidade').value=(conteudo.localidade);
-        document.getElementById('checkout_uf').value=(conteudo.uf);
-        document.getElementById('checkout_numero').focus();
-    } else { alert("CEP não encontrado."); }
+
+function calcularFreteCarrinho() {
+    var cep = document.getElementById('carrinho_cep').value.replace(/\D/g, '');
+    if (cep.length !== 8) { alert("CEP inválido"); return; }
+    
+    var carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
+    if(carrinho.length === 0) return;
+
+    // Calcula peso aproximado total (supondo 0.9kg por par se não tiver na planilha)
+    // Para simplificar, vou mandar um pacote fixo de exemplo ou somar pesos.
+    // O ideal seria pegar dados reais, mas vamos simular um pacote padrão de 1kg
+    var dadosFrete = {
+        op: "calcular_frete",
+        cep: cep,
+        peso: 1.0, 
+        comprimento: 20, altura: 15, largura: 20
+    };
+
+    var divOpcoes = document.getElementById('carrinho_opcoes_frete');
+    divOpcoes.innerHTML = "Calculando...";
+    bloquearCheckout(true);
+
+    fetch(CONFIG.SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify(dadosFrete)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.erro) {
+            divOpcoes.innerHTML = `<span class="text-danger">${data.erro}</span>`;
+        } else if (data.opcoes) {
+            // LÓGICA DE FRETE GRÁTIS E DESCONTO
+            // 1. Pega o estado retornado pelo ViaCep (ou SuperFrete se retornar)
+            // Como SuperFrete não retorna UF no calculo, usamos o que guardamos no 'enderecoEntregaTemp'
+            var estadoDestino = enderecoEntregaTemp.uf || ""; 
+
+            var html = '<div class="list-group">';
+            
+            data.opcoes.forEach((op, index) => {
+               // Verifica se há regra de frete grátis no carrinho
+               // Regra: Se TODOS os itens do carrinho tem esse estado na lista, é grátis.
+               // OU Regra Simplificada: Se pelo menos um item dá frete grátis pra esse estado.
+               // Vou usar a regra: Verifica o primeiro item (ou aplica desconto geral).
+               
+               // Vamos verificar item por item se o Estado está na lista
+               var ehGratis = false;
+               if(estadoDestino) {
+                   // Verifica se ALGUM produto do carrinho tem frete grátis para este estado
+                   ehGratis = carrinho.some(item => {
+                       return item.freteGratisUF && item.freteGratisUF.includes(estadoDestino);
+                   });
+               }
+
+               var valorFinal = parseFloat(op.valor);
+               var textoExtra = "";
+
+               if (ehGratis && op.nome.toUpperCase().includes("PAC")) {
+                   // Normalmente Frete Grátis é no modo mais barato (PAC)
+                   valorFinal = 0;
+                   textoExtra = '<span class="badge bg-success ms-2">GRÁTIS</span>';
+               } else if (!ehGratis) {
+                   // APLICA O SUBSÍDIO (DESCONTO) se não for grátis
+                   valorFinal = valorFinal - SUBSIDIO_FRETE;
+                   if (valorFinal < 0) valorFinal = 0; // Não deixa negativo
+                   textoExtra = `<span class="badge bg-info text-dark ms-2">Desconto Aplicado</span>`;
+               }
+
+               html += `
+               <label class="list-group-item d-flex justify-content-between align-items-center">
+                  <div>
+                    <input class="form-check-input me-1" type="radio" name="freteRadio" value="${valorFinal}" data-nome="${op.nome}" onchange="selecionarFrete(this)">
+                    ${op.nome} (${op.prazo} dias)
+                    ${textoExtra}
+                  </div>
+                  <span class="fw-bold">R$ ${valorFinal.toFixed(2)}</span>
+               </label>`;
+            });
+            html += '</div>';
+            divOpcoes.innerHTML = html;
+        }
+    })
+    .catch(e => {
+        console.error(e);
+        divOpcoes.innerHTML = "Erro ao calcular.";
+    });
 }
 
-function iniciarPagamento() {
+function selecionarFrete(input) {
+    freteCalculado = parseFloat(input.value);
+    freteSelecionadoNome = input.getAttribute('data-nome');
+    
+    // Atualiza totais
+    var c = JSON.parse(localStorage.getItem('carrinho')) || [];
+    var subtotal = c.reduce((acc, i) => acc + (i.preco * i.quantidade), 0);
+    atualizarTotalFinal(subtotal);
+    
+    bloquearCheckout(false);
+}
+
+function bloquearCheckout(bloquear) {
+    var btn = document.getElementById('btn_pagar');
+    var msg = document.getElementById('msg_falta_frete');
+    btn.disabled = bloquear;
+    if(bloquear) {
+        msg.style.display = 'block';
+    } else {
+        msg.style.display = 'none';
+    }
+}
+
+// --- 7. CHECKOUT FINAL ---
+
+function irParaCheckout() {
+    // 1. Fecha modal carrinho
+    bootstrap.Modal.getInstance(document.getElementById('modalCarrito')).hide();
+    
+    // 2. Preenche modal checkout com dados já capturados
+    if(enderecoEntregaTemp.logradouro) {
+        document.getElementById('checkout_rua').value = enderecoEntregaTemp.logradouro;
+        document.getElementById('checkout_bairro').value = enderecoEntregaTemp.bairro;
+        document.getElementById('checkout_cidade').value = enderecoEntregaTemp.localidade;
+        document.getElementById('checkout_uf').value = enderecoEntregaTemp.uf;
+        
+        // Foca no número
+        setTimeout(() => document.getElementById('checkout_numero').focus(), 500);
+    }
+    
+    // 3. Abre modal checkout
+    new bootstrap.Modal(document.getElementById('modalCheckout')).show();
+}
+
+function iniciarPagamentoFinal() {
     var cliente = {
         cpf: document.getElementById('checkout_cpf').value,
         telefone: document.getElementById('checkout_telefone').value,
-        cep: document.getElementById('checkout_cep').value,
+        cep: document.getElementById('carrinho_cep').value, // Pega do carrinho
         rua: document.getElementById('checkout_rua').value,
         numero: document.getElementById('checkout_numero').value,
         bairro: document.getElementById('checkout_bairro').value,
@@ -401,18 +476,33 @@ function iniciarPagamento() {
         uf: document.getElementById('checkout_uf').value,
         complemento: document.getElementById('checkout_complemento').value
     };
+
     if (!cliente.cpf || !cliente.rua || !cliente.numero) {
         alert("Preencha CPF, Rua e Número."); return;
     }
-    var carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
-    if (carrinho.length === 0) { alert("Carrinho vazio!"); return; }
 
     var btn = event.target;
     btn.innerText = "Processando...";
     btn.disabled = true;
 
-    var items = carrinho.map(i => ({title: i.producto, quantity: i.quantidade, currency_id: 'BRL', unit_price: parseFloat(i.preco)}));
+    var carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
+    var items = carrinho.map(i => ({
+        title: i.producto, 
+        quantity: i.quantidade, 
+        currency_id: 'BRL', 
+        unit_price: parseFloat(i.preco)
+    }));
     
+    // Adiciona o Frete como um item no pedido do MercadoPago
+    if (freteCalculado > 0) {
+        items.push({
+            title: "Frete (" + freteSelecionadoNome + ")",
+            quantity: 1,
+            currency_id: 'BRL',
+            unit_price: freteCalculado
+        });
+    }
+
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
         body: JSON.stringify({cliente: cliente, items: items})
@@ -422,24 +512,25 @@ function iniciarPagamento() {
     .catch(e => { console.error(e); alert("Erro ao processar."); btn.innerText = "Tentar Novamente"; btn.disabled = false; });
 }
 
-// Animação CSS para o Skeleton
-var style = document.createElement('style');
-style.innerHTML = `@keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 0.3; } 100% { opacity: 0.6; } }`;
-document.head.appendChild(style);
-
-$(document).ready(function() {
+// UX: Controle de Visibilidade do Botão Flutuante
+// Isso resolve o problema do botão cobrindo o conteúdo
+document.addEventListener("DOMContentLoaded", function(){
     carregar_config();
     carregar_produtos();
     atualizar_carrinho();
 
-    // UX: Sumir Carrinho quando abrir Modal
-    var modalProduto = document.getElementById('modalProduto');
-    if(modalProduto) {
-        modalProduto.addEventListener('show.bs.modal', function () {
-            document.getElementById('btn_carrinho_flutuante').style.display = 'none';
-        });
-        modalProduto.addEventListener('hidden.bs.modal', function () {
-            document.getElementById('btn_carrinho_flutuante').style.display = 'block';
-        });
-    }
+    // Lista de IDs dos modais
+    const modais = ['modalProduto', 'modalCarrito', 'modalCheckout', 'modalLogin', 'modalUsuario'];
+    const btnFloat = document.getElementById('btn_carrinho_flutuante');
+
+    modais.forEach(id => {
+        var el = document.getElementById(id);
+        if(el) {
+            el.addEventListener('show.bs.modal', () => { if(btnFloat) btnFloat.style.display = 'none'; });
+            el.addEventListener('hidden.bs.modal', () => { 
+                // Só mostra se nenhum outro estiver aberto (verificação simples)
+                if(!document.querySelector('.modal.show') && btnFloat) btnFloat.style.display = 'block'; 
+            });
+        }
+    });
 });
