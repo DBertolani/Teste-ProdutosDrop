@@ -644,7 +644,11 @@ $(document).on('blur', '#checkout_cpf', function() {
         .then(r => r.json())
         .then(dados => {
             if (dados.encontrado) {
-                if (confirm("Identificamos um cadastro para este CPF. Deseja carregar seus dados de entrega automaticamente?")) {
+                // Exibe o aviso bonito em vez do confirm do navegador
+                $("#aviso_cpf_encontrado").fadeIn();
+                
+                // Configura o botão para preencher os dados se o usuário aceitar
+                document.getElementById('btn_usar_dados_antigos').onclick = function() {
                     document.getElementById('checkout_telefone').value = dados.telefone || "";
                     document.getElementById('checkout_rua').value = dados.rua || "";
                     document.getElementById('checkout_numero').value = dados.numero || "";
@@ -652,7 +656,13 @@ $(document).on('blur', '#checkout_cpf', function() {
                     document.getElementById('checkout_cidade').value = dados.cidade || "";
                     document.getElementById('checkout_uf').value = dados.uf || "";
                     document.getElementById('checkout_complemento').value = dados.complemento || "";
-                }
+                    
+                    // Validação Crítica de CEP
+                    if (dados.cep && dados.cep.replace(/\D/g,'') !== document.getElementById('carrinho_cep').value.replace(/\D/g,'')) {
+                        alert("Atenção: O endereço cadastrado tem um CEP diferente do usado no cálculo do frete. Por favor, verifique se deseja manter o endereço ou recalcular o frete.");
+                    }
+                    $("#aviso_cpf_encontrado").fadeOut();
+                };
             }
         });
     }
@@ -737,4 +747,14 @@ document.addEventListener("DOMContentLoaded", function(){
             });
         }
     });
+});
+
+
+// Monitora se o usuário está tentando mudar o CEP no meio do caminho
+$(document).on('change', '#carrinho_cep', function() {
+    // Se mudar o CEP, reseta o frete selecionado para forçar novo cálculo
+    freteCalculado = 0;
+    freteSelecionadoNome = "";
+    document.getElementById('carrinho_opcoes_frete').innerHTML = '<span class="text-danger">CEP alterado. Recalcule o frete para continuar.</span>';
+    bloquearCheckout(true);
 });
