@@ -1,15 +1,18 @@
-// js/app.js - Versão Final (Visual Carrinho Melhorado + Lógica Frete Correta)
+// js/app.js - Versão Ajustada (Config Dinâmica, Simulador Produto, Ícone Limpo)
 
-// --- CONFIGURAÇÃO DE DESCONTO DE FRETE ---
-// Valor que você desconta do frete REAL.
-// Ex: Frete deu R$ 40,00. Cliente paga R$ 25,00 (40 - 15).
-const SUBSIDIO_FRETE = 15.00; 
+// Variável global para guardar as configurações da planilha
+var CONFIG_LOJA = {};
 
 // --- 1. CONFIGURAÇÕES INICIAIS ---
 function carregar_config() {
    var url = CONFIG.SCRIPT_URL + "?rota=config&nocache=" + new Date().getTime();
+   
+   // Tenta ler do cache primeiro para ser rápido
    var configCache = JSON.parse(localStorage.getItem('loja_config'));
-   if(configCache) aplicar_config(configCache);
+   if(configCache) {
+       CONFIG_LOJA = configCache;
+       aplicar_config();
+   }
 
    fetch(url)
     .then(res => res.json())
@@ -19,30 +22,44 @@ function carregar_config() {
         if(Array.isArray(data)) {
             data.forEach(l => { if(l.Chave && l.Valor) config[l.Chave] = l.Valor; });
         } else { config = data; }
+        
         localStorage.setItem("loja_config", JSON.stringify(config));
-        aplicar_config(config);
+        CONFIG_LOJA = config; // Atualiza global
+        aplicar_config();
+        
+        // Se já carregou produtos, mas a config de colunas mudou, recarrega layout
+        if(document.getElementById('div_produtos').innerHTML !== "") {
+            var produtosCache = JSON.parse(localStorage.getItem('calçados'));
+            if(produtosCache) mostrar_produtos(produtosCache);
+        }
     })
     .catch(e => console.log("Erro config", e));
 }
 
-function aplicar_config(config) {
-    if(config.CorPrincipal) document.documentElement.style.setProperty('--cor-principal', config.CorPrincipal);
-    var titulo = config.TituloAba || config.NomeDoSite;
+function aplicar_config() {
+    // 1. Cores e Títulos
+    if(CONFIG_LOJA.CorPrincipal) document.documentElement.style.setProperty('--cor-principal', CONFIG_LOJA.CorPrincipal);
+    
+    var titulo = CONFIG_LOJA.TituloAba || CONFIG_LOJA.NomeDoSite;
     if(titulo) {
         document.title = titulo;
         var seoTitle = document.getElementById('seo_titulo');
         if(seoTitle) seoTitle.innerText = titulo;
     }
-    if(config.DescricaoSEO) {
+    
+    // 2. Descrição SEO
+    if(CONFIG_LOJA.DescricaoSEO) {
         var metaDesc = document.getElementById('seo_descricao');
-        if(metaDesc) metaDesc.setAttribute("content", config.DescricaoSEO);
+        if(metaDesc) metaDesc.setAttribute("content", CONFIG_LOJA.DescricaoSEO);
     }
+    
+    // 3. Logo
     var logo = document.getElementById('logo_site');
     if(logo) {
-        if(config.LogoDoSite && config.LogoDoSite.trim() !== "") {
-            var src = config.LogoDoSite.replace('/view', '/preview');
-            logo.innerHTML = `<img src="${src}" alt="${config.NomeDoSite}" style="max-height:40px; margin-right:10px;">`;
-        } else if (config.NomeDoSite) { logo.innerText = config.NomeDoSite; }
+        if(CONFIG_LOJA.LogoDoSite && CONFIG_LOJA.LogoDoSite.trim() !== "") {
+            var src = CONFIG_LOJA.LogoDoSite.replace('/view', '/preview');
+            logo.innerHTML = `<img src="${src}" alt="${CONFIG_LOJA.NomeDoSite}" style="max-height:40px; margin-right:10px;">`;
+        } else if (CONFIG_LOJA.NomeDoSite) { logo.innerText = CONFIG_LOJA.NomeDoSite; }
     }
 }
 
@@ -52,6 +69,9 @@ function carregar_categorias(produtos) {
     if(!menu) return;
     menu.innerHTML = `<li><a class="dropdown-item fw-bold" href="#" onclick="limpar_filtros(); fechar_menu_mobile()">Ver Todos</a></li>`;
     menu.innerHTML += `<li><hr class="dropdown-divider"></li>`;
+    
+    if (CONFIG_LOJA.MostrarCategorias === "FALSE") return; // Respeita config
+
     const categorias = [...new Set(produtos.map(p => p.Categoria))].filter(c => c); 
     if(categorias.length > 0) {
         categorias.forEach(cat => {
@@ -85,11 +105,16 @@ function mostrar_skeleton(exibir) {
     const container = document.getElementById('loading_skeleton_container');
     const boxes = document.getElementById('loading_skeleton_boxes');
     if(!container) return;
+    
+    // Define colunas do skeleton baseado na config
+    var colClass = 'col-md-3'; // Padrão 4 colunas
+    if(CONFIG_LOJA.ColunasDesktop == 3) colClass = 'col-md-4'; 
+
     if(exibir) {
         boxes.innerHTML = '';
         for(let i=0; i<4; i++) {
             boxes.innerHTML += `
-            <div class="col-md-3 col-6"> 
+            <div class="${colClass} col-6"> 
                 <div class="card shadow-sm h-100 border-0">
                     <div class="card-img-top bg-secondary" style="height: 150px; opacity:0.1; animation: pulse 1.5s infinite;"></div>
                     <div class="card-body">
@@ -107,15 +132,23 @@ function mostrar_skeleton(exibir) {
 function mostrar_produtos(produtos) {
   const container = document.getElementById('div_produtos');
   container.innerHTML = '';
+  
   if(produtos.length === 0) {
       container.innerHTML = '<div class="col-12 text-center mt-5"><p class="text-muted">Nenhum produto encontrado.</p><button class="btn btn-outline-secondary" onclick="limpar_filtros()">Ver Todos</button></div>';
       return;
   }
+
+  // Configuração de Colunas Dinâmica
+  var colClass = 'col-md-3'; // Padrão (4 produtos por linha)
+  if(CONFIG_LOJA.ColunasDesktop == 3) colClass = 'col-md-4'; // (3 produtos por linha)
+  if(CONFIG_LOJA.ColunasDesktop == 2) colClass = 'col-md-6';
+
   produtos.forEach(p => {
     var altText = p.Produto + " - " + p.Categoria; 
     var infoExtra = (p.Tamanhos || p.Variacoes) ? `<small>Opções disponíveis</small>` : '';
     const item = document.createElement('div');
-    item.className = 'col-md-3 col-12 mt-4'; 
+    item.className = `${colClass} col-6 mt-4`; // Aplica a classe calculada
+    
     item.innerHTML = `
       <div class="card shadow-sm h-100">
           <div style="height: 250px; display: flex; align-items: center; justify-content: center; background: #fff;">
@@ -143,7 +176,7 @@ function limpar_filtros() {
     document.getElementById('txt_search').value = "";
 }
 
-// --- 4. MODAL DO PRODUTO ---
+// --- 4. MODAL DO PRODUTO (Ver + Simular Frete Individual) ---
 var produtoAtual = null; 
 var variacaoSelecionada = null;
 
@@ -157,6 +190,7 @@ function abrir_modal_ver(id) {
     document.getElementById('modalPreco').innerText = 'R$ ' + parseFloat(produtoAtual.Preço).toFixed(2);
     document.getElementById('modalDescricaoTexto').innerText = produtoAtual.Descrição || "";
 
+    // Carrossel de Imagens
     var containerImagens = document.getElementById('carouselImagensContainer');
     containerImagens.innerHTML = '';
     var imgs = [produtoAtual.ImagemPrincipal];
@@ -171,6 +205,7 @@ function abrir_modal_ver(id) {
         }
     });
 
+    // Variações
     var divVar = document.getElementById('areaVariacoes');
     var listaVar = document.getElementById('listaVariacoes');
     divVar.style.display = 'none';
@@ -190,6 +225,7 @@ function abrir_modal_ver(id) {
         variacaoSelecionada = "Único"; 
     }
 
+    // Tabela de Medidas
     var divMedidas = document.getElementById('areaTabelaMedidas');
     if (produtoAtual.TamanhosImagens && produtoAtual.TamanhosImagens.trim() !== "") {
         divMedidas.style.display = 'block';
@@ -198,14 +234,13 @@ function abrir_modal_ver(id) {
         divMedidas.style.display = 'none';
     }
 
+    // Botão Adicionar
     document.getElementById('btnAdicionarModal').onclick = function() {
         if (!variacaoSelecionada) {
             alert("Por favor, selecione uma opção (Tamanho/Variação).");
             return;
         }
         var nomeFinal = produtoAtual.Produto;
-        
-        // Passamos também a lista de frete grátis do produto para o carrinho
         var freteGratisUF = produtoAtual.FreteGratis || ""; 
         
         adicionar_carrinho(
@@ -214,10 +249,16 @@ function abrir_modal_ver(id) {
             produtoAtual.Preço, 
             produtoAtual.ImagemPrincipal, 
             freteGratisUF,
-            variacaoSelecionada // Passamos a variação separada para exibir melhor
+            variacaoSelecionada 
         );
-        
         bootstrap.Modal.getInstance(document.getElementById('modalProduto')).hide();
+    };
+
+    // Configuração do Simulador Individual
+    document.getElementById('resultadoFreteIndividual').innerHTML = "";
+    document.getElementById('inputSimulaCepIndividual').value = "";
+    document.getElementById('btnSimularFreteIndividual').onclick = function() {
+        simular_frete_produto_individual(produtoAtual);
     };
 
     new bootstrap.Modal(document.getElementById('modalProduto')).show();
@@ -226,6 +267,93 @@ function abrir_modal_ver(id) {
 function selecionar_variacao(valor) {
     variacaoSelecionada = valor;
 }
+
+// --- Lógica Simulador Individual ---
+function simular_frete_produto_individual(produto) {
+    var cep = document.getElementById('inputSimulaCepIndividual').value.replace(/\D/g, '');
+    if (cep.length !== 8) { alert("CEP inválido"); return; }
+
+    var btn = document.getElementById('btnSimularFreteIndividual');
+    var res = document.getElementById('resultadoFreteIndividual');
+    
+    btn.innerText = "...";
+    btn.disabled = true;
+    res.innerHTML = "Calculando...";
+
+    // Obtém subsídio da config global
+    var subsidio = parseFloat(CONFIG_LOJA.SubsidioFrete || 0);
+
+    var dadosFrete = {
+        op: "calcular_frete",
+        cep: cep,
+        peso: produto.Peso || 0.9,
+        comprimento: produto.Comprimento || 20,
+        altura: produto.Altura || 15,
+        largura: produto.Largura || 20
+    };
+
+    fetch(CONFIG.SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify(dadosFrete)
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.innerText = "OK";
+        btn.disabled = false;
+        
+        if (data.erro) {
+            res.innerHTML = `<span class="text-danger">${data.erro}</span>`;
+            return;
+        }
+
+        // Precisamos saber o UF para ver se é Grátis
+        // Como o endpoint de calcular_frete do superfrete as vezes nao retorna UF, 
+        // idealmente fariamos um fetch no viacep, mas vamos tentar simplificar.
+        // Se a API backend retornar o UF seria otimo, mas se nao, assumimos o desconto padrao.
+        // Vamos fazer um fetch rapido no viacep pra garantir a regra do frete gratis.
+        
+        fetch(`https://viacep.com.br/ws/${cep}/json/`)
+        .then(rv => rv.json())
+        .then(cepData => {
+            var ufDestino = cepData.uf || "";
+            var html = '<ul class="list-unstyled mt-2">';
+            
+            var ehGratis = produto.FreteGratis && produto.FreteGratis.includes(ufDestino);
+
+            data.opcoes.forEach(op => {
+                var valor = parseFloat(op.valor);
+                var nome = op.nome.toUpperCase();
+                var isPac = nome.includes("PAC");
+                var displayVal = valor;
+                var tag = "";
+
+                if(ehGratis) {
+                    if(isPac) {
+                        displayVal = 0;
+                        tag = '<span class="badge bg-success">Grátis</span>';
+                    } else {
+                        displayVal = Math.max(0, valor - subsidio);
+                        tag = '<span class="badge bg-info text-dark">Desconto</span>';
+                    }
+                } else {
+                    displayVal = Math.max(0, valor - subsidio);
+                    if(subsidio > 0) tag = '<span class="badge bg-info text-dark">Desconto</span>';
+                }
+
+                html += `<li><strong>${op.nome}</strong>: R$ ${displayVal.toFixed(2)} <small class="text-muted">(${op.prazo}d)</small> ${tag}</li>`;
+            });
+            html += '</ul>';
+            res.innerHTML = html;
+        });
+    })
+    .catch(e => {
+        console.error(e);
+        btn.innerText = "OK";
+        btn.disabled = false;
+        res.innerHTML = "Erro ao calcular.";
+    });
+}
+
 
 // --- 5. CARRINHO (LÓGICA DO CARRINHO + FRETE) ---
 
@@ -247,7 +375,7 @@ function adicionar_carrinho(id, prod, preco, img, freteGratisUF, variacao) {
             imagem: img, 
             quantidade: 1, 
             freteGratisUF: freteGratisUF,
-            variacao: variacao // Salva a variação aqui
+            variacao: variacao 
         });
     }
     localStorage.setItem('carrinho', JSON.stringify(c));
@@ -299,13 +427,14 @@ function atualizar_carrinho() {
     }
 
     c.forEach(i => {
-        // Exibe a variação se ela existir e não for "Único"
         var textoVariacao = (i.variacao && i.variacao !== 'Único') 
             ? `<div class="badge bg-secondary mt-1">Opção: ${i.variacao}</div>` 
             : '';
 
         var row = document.createElement('div');
         row.className = 'd-flex justify-content-between align-items-center mb-3 border-bottom pb-2';
+        
+        // CORREÇÃO ÍCONE LIXEIRA AQUI:
         row.innerHTML = `
         <div class="d-flex align-items-center" style="width: 45%;">
             <img src="${i.imagem}" style="width:50px; height:50px; object-fit:cover; margin-right:10px; border-radius:5px;">
@@ -325,7 +454,7 @@ function atualizar_carrinho() {
         <div class="text-end d-flex flex-column align-items-end" style="width: 25%;">
              <div style="font-weight:bold; font-size: 0.9rem; margin-bottom: 5px;">R$ ${(i.preco*i.quantidade).toFixed(2)}</div>
              <button class="btn btn-sm btn-outline-danger" onclick="remover_carrinho('${i.id}')" title="Excluir Item">
-                <i class="bi bi-trash"></i> 🗑️
+                <i class="bi bi-trash"></i> 
              </button>
         </div>`;
         div.appendChild(row);
@@ -380,6 +509,9 @@ function calcularFreteCarrinho() {
     divOpcoes.innerHTML = "Calculando...";
     bloquearCheckout(true);
 
+    // Obtém subsídio da config global
+    var subsidio = parseFloat(CONFIG_LOJA.SubsidioFrete || 0);
+
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
         body: JSON.stringify(dadosFrete)
@@ -394,7 +526,6 @@ function calcularFreteCarrinho() {
             var html = '<div class="list-group">';
             
             data.opcoes.forEach((op, index) => {
-               // 1. Verifica se o produto permite frete grátis para este estado
                var ehGratis = false;
                if(estadoDestino) {
                    ehGratis = carrinho.some(item => {
@@ -409,20 +540,18 @@ function calcularFreteCarrinho() {
 
                if (ehGratis) {
                    if (isPac) {
-                       // PAC é Grátis para Estados da lista
                        valorFinal = 0;
                        textoExtra = '<span class="badge bg-success ms-2">GRÁTIS</span>';
                    } else {
-                       // SEDEX para Estados da lista ganha desconto
-                       valorFinal = valorFinal - SUBSIDIO_FRETE;
-                       if(valorFinal < 0) valorFinal = 0;
+                       valorFinal = Math.max(0, valorFinal - subsidio);
                        textoExtra = '<span class="badge bg-info text-dark ms-2">Desconto Aplicado</span>';
                    }
                } else {
-                   // Se NÃO é estado grátis, aplica o subsídio em TUDO (PAC e SEDEX)
-                   valorFinal = valorFinal - SUBSIDIO_FRETE;
-                   if (valorFinal < 0) valorFinal = 0; 
-                   textoExtra = `<span class="badge bg-info text-dark ms-2">Desconto Aplicado</span>`;
+                   // Aplica subsídio se configurado
+                   if(subsidio > 0) {
+                       valorFinal = Math.max(0, valorFinal - subsidio);
+                       textoExtra = `<span class="badge bg-info text-dark ms-2">Desconto Aplicado</span>`;
+                   }
                }
 
                html += `
@@ -506,7 +635,6 @@ function iniciarPagamentoFinal() {
     btn.disabled = true;
 
     var carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
-    // Agora enviamos também a variação no título para o Mercado Pago saber
     var items = carrinho.map(i => {
         var tituloCompleto = i.producto;
         if(i.variacao && i.variacao !== "Único") {
