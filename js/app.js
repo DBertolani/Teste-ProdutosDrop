@@ -4,6 +4,7 @@
 function carregar_config() {
    var url = CONFIG.SCRIPT_URL + "?rota=config&nocache=" + new Date().getTime();
    
+   
    // Tenta carregar cache primeiro (pra ser rápido)
    var configCache = JSON.parse(localStorage.getItem('loja_config'));
    if(configCache) aplicar_config(configCache);
