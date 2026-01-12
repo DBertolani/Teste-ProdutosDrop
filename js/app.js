@@ -670,6 +670,37 @@ function irParaCheckout() {
     new bootstrap.Modal(document.getElementById('modalCheckout')).show();
 }
 
+// --- NOVO: BUSCA AUTOMÁTICA DE CLIENTE POR CPF ---
+$(document).on('blur', '#checkout_cpf', function() {
+    var cpf = $(this).val().replace(/\D/g, '');
+    if (cpf.length === 11) {
+        var campoStatus = $(this);
+        campoStatus.addClass('is-loading'); // Opcional: feedback visual
+
+        fetch(CONFIG.SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ op: "buscar_cliente", cpf: cpf })
+        })
+        .then(r => r.json())
+        .then(dados => {
+            if (dados.encontrado) {
+                if (confirm("Identificamos um cadastro para este CPF. Deseja carregar seus dados de entrega automaticamente?")) {
+                    document.getElementById('checkout_telefone').value = dados.telefone || "";
+                    document.getElementById('checkout_rua').value = dados.rua || "";
+                    document.getElementById('checkout_numero').value = dados.numero || "";
+                    document.getElementById('checkout_bairro').value = dados.bairro || "";
+                    document.getElementById('checkout_cidade').value = dados.cidade || "";
+                    document.getElementById('checkout_uf').value = dados.uf || "";
+                    document.getElementById('checkout_complemento').value = dados.complemento || "";
+                    // Se o cliente quiser mudar o destinatário, ele pode editar os campos após carregar
+                }
+            }
+        })
+        .catch(e => console.error("Erro ao buscar cliente:", e));
+    }
+});
+
+
 function iniciarPagamentoFinal() {
     var cliente = {
         cpf: document.getElementById('checkout_cpf').value,
@@ -680,7 +711,9 @@ function iniciarPagamentoFinal() {
         bairro: document.getElementById('checkout_bairro').value,
         cidade: document.getElementById('checkout_cidade').value,
         uf: document.getElementById('checkout_uf').value,
-        complemento: document.getElementById('checkout_complemento').value
+        complemento: document.getElementById('checkout_complemento').value,
+        // Pegamos o email do cadastro se existir, ou do campo (ajuste conforme seu HTML)
+        email: document.getElementById('email') ? document.getElementById('email').value : "" 
     };
 
     if (!cliente.cpf || !cliente.rua || !cliente.numero) {
@@ -699,7 +732,7 @@ function iniciarPagamentoFinal() {
         }
         return {
             title: tituloCompleto, 
-            quantity: i.quantidade, 
+            quantity: i.quantity, 
             currency_id: 'BRL', 
             unit_price: parseFloat(i.preco)
         };
@@ -714,31 +747,28 @@ function iniciarPagamentoFinal() {
         });
     }
 
+    // --- NOVA PARTE: PREPARA DADOS LOGÍSTICOS ---
+    var logisticaInfo = {
+        servico: freteSelecionadoNome, // Ex: "PAC" ou "SEDEX"
+        peso: (carrinho.reduce((t, i) => t + (i.quantidade * 0.9), 0)).toFixed(2),
+        dimensoes: "Calculado via Carrinho"
+    };
+
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
-        body: JSON.stringify({cliente: cliente, items: items})
+        // Adicionamos 'logistica' no corpo do envio
+        body: JSON.stringify({
+            cliente: cliente, 
+            items: items, 
+            logistica: logisticaInfo 
+        })
     })
     .then(r => r.text())
     .then(link => { window.location.href = link; })
-    .catch(e => { console.error(e); alert("Erro ao processar."); btn.innerText = "Tentar Novamente"; btn.disabled = false; });
-}
-
-// UX: Controle de Visibilidade do Botão Flutuante
-document.addEventListener("DOMContentLoaded", function(){
-    carregar_config();
-    carregar_produtos();
-    atualizar_carrinho();
-
-    const modais = ['modalProduto', 'modalCarrito', 'modalCheckout', 'modalLogin', 'modalUsuario'];
-    const btnFloat = document.getElementById('btn_carrinho_flutuante');
-
-    modais.forEach(id => {
-        var el = document.getElementById(id);
-        if(el) {
-            el.addEventListener('show.bs.modal', () => { if(btnFloat) btnFloat.style.display = 'none'; });
-            el.addEventListener('hidden.bs.modal', () => { 
-                if(!document.querySelector('.modal.show') && btnFloat) btnFloat.style.display = 'block'; 
-            });
-        }
+    .catch(e => { 
+        console.error(e); 
+        alert("Erro ao processar."); 
+        btn.innerText = "Tentar Novamente"; 
+        btn.disabled = false; 
     });
-});
+}
