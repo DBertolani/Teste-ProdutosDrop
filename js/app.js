@@ -845,7 +845,7 @@ $(document).on('change', '#checkout_cep', function() {
 // --- NOVO FLUXO DE IDENTIFICAÇÃO ---
 
 function abrirIdentificacao() {
-  bootstrap.Modal.getInstance(document.getElementById('modalCarrito')).hide();
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCarrito')).hide();
 
   // reset básico
   $('#cpf_identificacao').val('');
@@ -892,68 +892,68 @@ $(document).on('input', '#cpf_identificacao', function() {
 
 // 2. Bloqueio por LGPD e Busca de CEP no Checkout
 function buscarIdentidade() {
-    // Validação da caixinha LGPD
-    if (!document.getElementById('check_lgpd').checked) {
-        alert("Para continuar, você precisa autorizar o uso dos dados conforme a LGPD.");
-        return;
+  if (!document.getElementById('check_lgpd').checked) {
+    alert("Para continuar, você precisa autorizar o uso dos dados conforme a LGPD.");
+    return;
+  }
+
+  var cpf = document.getElementById('cpf_identificacao').value.replace(/\D/g, '');
+  if (cpf.length !== 11) { 
+    alert("Informe um CPF válido"); 
+    return; 
+  }
+
+  var btn = document.querySelector('#btn_buscar_identidade_div button');
+  btn.innerText = "Consultando...";
+  btn.disabled = true;
+
+  fetch(CONFIG.SCRIPT_URL, {
+    method: 'POST',
+    body: JSON.stringify({ op: "buscar_cliente", cpf: cpf })
+  })
+  .then(r => r.json())
+  .then(dados => {
+    btn.innerText = "Buscar CPF";
+    btn.disabled = false;
+
+    if (dados && dados.encontrado) {
+      enderecoEntregaTemp = dados;
+
+      dadosClienteTemp.nome = (dados.nome || "").trim();
+      dadosClienteTemp.sobrenome = (dados.sobrenome || "").trim();
+
+      const tel = (dados.telefone || "").trim();
+      const comp = (dados.complemento || "").trim();
+      const bairro = (dados.bairro || "").trim();
+      const cidade = (dados.cidade || "").trim();
+      const uf = (dados.uf || "").trim();
+
+      document.getElementById('resumo_dados_cliente').innerHTML = `
+        <div class="small">
+          <div class="fw-bold mb-1">${dadosClienteTemp.nome} ${dadosClienteTemp.sobrenome}</div>
+          <div>${dados.rua || ''}, ${dados.numero || ''}${comp ? ` - ${comp}` : ''}</div>
+          <div>${bairro ? bairro + ' - ' : ''}${cidade}/${uf}</div>
+          <div>CEP: ${dados.cep || ''}${tel ? ` | Tel: ${tel}` : ''}</div>
+        </div>
+        <div class="form-text mt-2">
+          Se estiver desatualizado, escolha <strong>Editar/atualizar</strong>.
+        </div>
+      `;
+
+      $("#resultado_busca_identidade").slideDown();
+      $("#btn_buscar_identidade_div").hide();
+    } else {
+      irParaCheckoutManual(cpf);
     }
-
-    var cpf = document.getElementById('cpf_identificacao').value.replace(/\D/g, '');
-    if (cpf.length !== 11) { alert("Informe um CPF válido"); return; }
-    
-    var btn = document.querySelector('#btn_buscar_identidade_div button');
-    btn.innerText = "Consultando...";
-    btn.disabled = true;
-
-    fetch(CONFIG.SCRIPT_URL, {
-        method: 'POST',
-        body: JSON.stringify({ op: "buscar_cliente", cpf: cpf })
-    })
-    .then(r => r.json())
-    .then(dados => {
-        btn.innerText = "Buscar CPF";
-        btn.disabled = false;
-
-        .catch(err => {
-          console.error("Erro buscar_cliente:", err);
-          btn.innerText = "Buscar CPF";
-          btn.disabled = false;
-          alert("Erro ao consultar. Veja o Console (F12) para detalhes.");
-        });
-
-
-        
-if (dados.encontrado) {
-  enderecoEntregaTemp = dados;
-
-  dadosClienteTemp.nome = (dados.nome || "").trim();
-  dadosClienteTemp.sobrenome = (dados.sobrenome || "").trim();
-
-  const tel = (dados.telefone || "").trim();
-  const comp = (dados.complemento || "").trim();
-  const bairro = (dados.bairro || "").trim();
-  const cidade = (dados.cidade || "").trim();
-  const uf = (dados.uf || "").trim();
-
-  document.getElementById('resumo_dados_cliente').innerHTML = `
-    <div class="small">
-      <div class="fw-bold mb-1">${dadosClienteTemp.nome} ${dadosClienteTemp.sobrenome}</div>
-      <div>${dados.rua || ''}, ${dados.numero || ''}${comp ? ` - ${comp}` : ''}</div>
-      <div>${bairro ? bairro + ' - ' : ''}${cidade}/${uf}</div>
-      <div>CEP: ${dados.cep || ''}${tel ? ` | Tel: ${tel}` : ''}</div>
-    </div>
-    <div class="form-text mt-2">
-      Se estiver desatualizado, escolha <strong>Editar/atualizar</strong>.
-    </div>
-  `;
-
-  $("#resultado_busca_identidade").slideDown();
-  $("#btn_buscar_identidade_div").hide();
-} else {
-            irParaCheckoutManual(cpf);
-        }
-    });
+  })
+  .catch(err => {
+    console.error("Erro buscar_cliente:", err);
+    btn.innerText = "Buscar CPF";
+    btn.disabled = false;
+    alert("Erro ao consultar. Veja o Console (F12) para detalhes.");
+  });
 }
+
 
 // 3. Função para buscar CEP dentro da tela de pagamento
 function buscarCepNoCheckout() {
