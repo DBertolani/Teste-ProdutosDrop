@@ -675,73 +675,101 @@ $(document).on('blur', '#checkout_cpf', function() {
 });
 
 function iniciarPagamentoFinal() {
-if (!validarCepCheckoutComFrete()) {
-    return;
-}
-    
-    var cliente = {
-        nome: dadosClienteTemp.nome || document.getElementById('checkout_nome')?.value || "",
-        sobrenome: dadosClienteTemp.sobrenome || document.getElementById('checkout_sobrenome')?.value || "",
-        cpf: document.getElementById('checkout_cpf').value,
-        telefone: document.getElementById('checkout_telefone').value,
-        cep: document.getElementById('checkout_cep').value,
-        rua: document.getElementById('checkout_rua').value,
-        numero: document.getElementById('checkout_numero').value,
-        bairro: document.getElementById('checkout_bairro').value,
-        cidade: document.getElementById('checkout_cidade').value,
-        uf: document.getElementById('checkout_uf').value,
-        complemento: document.getElementById('checkout_complemento').value
-    };
+    if (!validarCepCheckoutComFrete()) return;
 
+    // ✅ pega nome/sobrenome do checkout (prioridade) e fallback para cache
+    const nomeDigitado = (document.getElementById('checkout_nome')?.value || "").trim();
+    const sobrenomeDigitado = (document.getElementById('checkout_sobrenome')?.value || "").trim();
 
-    if (!cliente.cpf || !cliente.rua || !cliente.numero) {
-        alert("Preencha CPF, Rua e Número."); return;
+    const nomeFinal = (nomeDigitado || (dadosClienteTemp.nome || "").trim());
+    const sobrenomeFinal = (sobrenomeDigitado || (dadosClienteTemp.sobrenome || "").trim());
+
+    if (!nomeFinal || !sobrenomeFinal) {
+        alert("Informe Nome e Sobrenome do destinatário.");
+        return;
     }
 
-    var btn = event.target;
-    btn.innerText = "Processando...";
-    btn.disabled = true;
+    var cliente = {
+        nome: nomeFinal,
+        sobrenome: sobrenomeFinal,
+        cpf: (document.getElementById('checkout_cpf')?.value || "").trim(),
+        telefone: (document.getElementById('checkout_telefone')?.value || "").trim(),
+        cep: (document.getElementById('checkout_cep')?.value || "").trim(),
+        rua: (document.getElementById('checkout_rua')?.value || "").trim(),
+        numero: (document.getElementById('checkout_numero')?.value || "").trim(),
+        bairro: (document.getElementById('checkout_bairro')?.value || "").trim(),
+        cidade: (document.getElementById('checkout_cidade')?.value || "").trim(),
+        uf: (document.getElementById('checkout_uf')?.value || "").trim(),
+        complemento: (document.getElementById('checkout_complemento')?.value || "").trim()
+    };
+
+    if (!cliente.cpf || !cliente.rua || !cliente.numero) {
+        alert("Preencha CPF, Rua e Número.");
+        return;
+    }
+
+    // ✅ sanitizadores para evitar NaN/#NUM!
+    const safeQty = (q) => {
+        const n = parseInt(q, 10);
+        return Number.isFinite(n) && n > 0 ? n : 1;
+    };
+
+    const safePrice = (p) => {
+        // aceita "129,90", "R$ 129,90", 129.90...
+        const s = String(p ?? "").replace(/[^\d,.-]/g, "").replace(",", ".");
+        const n = parseFloat(s);
+        return Number.isFinite(n) && n >= 0 ? n : 0;
+    };
+
+    var btn = event?.target;
+    if (btn) {
+        btn.innerText = "Processando...";
+        btn.disabled = true;
+    }
 
     var carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
     var items = carrinho.map(i => {
         var tituloCompleto = i.producto;
-        if(i.variacao && i.variacao !== "Único") tituloCompleto += " - " + i.variacao;
+        if (i.variacao && i.variacao !== "Único") tituloCompleto += " - " + i.variacao;
+
         return {
-            title: tituloCompleto, 
-            quantity: Number(i.quantidade || 1),
-            currency_id: 'BRL', 
-            unit_price: parseFloat(i.preco)
+            title: tituloCompleto,
+            quantity: safeQty(i.quantidade),
+            currency_id: 'BRL',
+            unit_price: safePrice(i.preco)
         };
     });
-    
+
     if (freteCalculado > 0) {
         items.push({
-            title: "Frete (" + freteSelecionadoNome + ")",
+            title: "Frete (" + (freteSelecionadoNome || "Serviço") + ")",
             quantity: 1,
             currency_id: 'BRL',
-            unit_price: freteCalculado
+            unit_price: safePrice(freteCalculado)
         });
     }
 
-    // DADOS LOGÍSTICOS PARA PLANILHA
     var logisticaInfo = {
-        servico: freteSelecionadoNome,
-        peso: (carrinho.reduce((t, i) => t + (i.quantidade * 0.9), 0)).toFixed(2),
+        servico: freteSelecionadoNome || "N/I",
+        peso: (carrinho.reduce((t, i) => t + (safeQty(i.quantidade) * 0.9), 0)).toFixed(2),
         dimensoes: "Calculado via Carrinho"
     };
 
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
-        body: JSON.stringify({cliente: cliente, items: items, logistica: logisticaInfo})
+        body: JSON.stringify({ cliente: cliente, items: items, logistica: logisticaInfo })
     })
     .then(r => r.text())
     .then(link => { window.location.href = link; })
-    .catch(e => { 
-        alert("Erro ao processar."); 
-        btn.innerText = "Tentar Novamente"; 
-        btn.disabled = false; 
+    .catch(e => {
+        alert("Erro ao processar.");
+        if (btn) {
+            btn.innerText = "Tentar Novamente";
+            btn.disabled = false;
+        }
     });
 }
+
 
 // --- 8. INICIALIZAÇÃO ---
 document.addEventListener("DOMContentLoaded", function(){
@@ -823,6 +851,11 @@ function abrirIdentificacao() {
 function irParaCheckoutManual(cpfInformado) {
     bootstrap.Modal.getInstance(document.getElementById('modalIdentificacao')).hide();
     document.getElementById('form-checkout').reset(); // Limpa tudo
+
+        // ✅ IMPORTANTE: limpa nome/sobrenome anteriores
+            dadosClienteTemp = {};
+
+    
     document.getElementById('checkout_cpf').value = cpfInformado || document.getElementById('cpf_identificacao').value;
     
     // Deixa os campos vazios para o novo cadastro
@@ -868,6 +901,11 @@ function buscarIdentidade() {
         
         if (dados.encontrado) {
             enderecoEntregaTemp = dados;
+
+                // ✅ GUARDA o nome/sobrenome do cliente encontrado
+                    dadosClienteTemp.nome = (dados.nome || "").trim();
+                    dadosClienteTemp.sobrenome = (dados.sobrenome || "").trim();
+            
             document.getElementById('resumo_dados_cliente').innerHTML = `
                 <div class="alert alert-secondary p-2 mb-0">
                     <strong>${dados.nome} ${dados.sobrenome}</strong><br>
@@ -909,6 +947,11 @@ function confirmarDadosExistentes() {
     bootstrap.Modal.getInstance(document.getElementById('modalIdentificacao')).hide();
     
     document.getElementById('checkout_cpf').value = document.getElementById('cpf_identificacao').value;
+
+    // ✅ preenche nome/sobrenome no checkout
+    document.getElementById('checkout_nome').value = dadosClienteTemp.nome || "";
+    document.getElementById('checkout_sobrenome').value = dadosClienteTemp.sobrenome || "";
+    
     document.getElementById('checkout_cep').value = enderecoEntregaTemp.cep || ""; // Preenche o novo campo
     document.getElementById('checkout_telefone').value = enderecoEntregaTemp.telefone || "";
     document.getElementById('checkout_rua').value = enderecoEntregaTemp.rua || "";
