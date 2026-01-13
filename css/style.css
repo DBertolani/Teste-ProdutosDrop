@@ -22,3 +22,30 @@ body {
   .row { display: flex !important; flex-wrap: wrap !important; }
   .col-md-3 { display: block !important; visibility: visible !important; opacity: 1 !important; }
 }
+
+
+/* Modal Identificação: usar a altura real do celular (dvh) e rolar só o conteúdo */
+#modalIdentificacao .modal-dialog {
+  margin: 0.5rem auto;
+  height: calc(100dvh - 1rem); /* altura útil do viewport mobile */
+  max-width: 520px;           /* opcional, mantém bonito no desktop */
+}
+
+#modalIdentificacao .modal-content {
+  height: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+#modalIdentificacao .modal-body {
+  overflow: auto;   /* rola só aqui */
+  flex: 1 1 auto;
+}
+
+/* fallback para navegadores antigos que não suportam dvh */
+@supports not (height: 100dvh) {
+  #modalIdentificacao .modal-dialog {
+    height: calc(100vh - 1rem);
+  }
+}
