@@ -4,7 +4,6 @@
 var CONFIG_LOJA = {};
 var dadosClienteTemp = {};
 
-
 // --- 0. MÁSCARA DE CEP ---
 function mascaraCep(t) {
     let v = t.value.replace(/\D/g,"");
