@@ -700,7 +700,7 @@ if (!validarCepCheckoutComFrete()) {
         if(i.variacao && i.variacao !== "Único") tituloCompleto += " - " + i.variacao;
         return {
             title: tituloCompleto, 
-            quantity: i.quantity, 
+            quantity: Number(i.quantidade || 1),
             currency_id: 'BRL', 
             unit_price: parseFloat(i.preco)
         };
