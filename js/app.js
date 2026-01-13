@@ -9,6 +9,21 @@ function S(v) {
     return String(v).trim();
 }
 
+function moneyToFloat(v) {
+  if (v === null || v === undefined) return 0;
+  // aceita: 10 | "10" | "10,00" | "R$ 10,00" | "1.234,56"
+  const s = String(v)
+    .trim()
+    .replace(/\s/g, "")
+    .replace("R$", "")
+    .replace(/\./g, "")   // remove milhar
+    .replace(",", ".")    // vírgula -> ponto
+    .replace(/[^\d.-]/g, "");
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+
 
 // --- 0. MÁSCARA DE CEP ---
 function mascaraCep(t) {
@@ -325,7 +340,7 @@ function simular_frete_produto_individual(produto) {
                     var ehGratis = produto.FreteGratis && produto.FreteGratis.includes(ufDestino);
 
                     data.opcoes.forEach(op => {
-                        var valor = parseFloat(op.valor);
+                        var valor = moneyToFloat(op.valor);
                         var nome = op.nome.toUpperCase();
                         var isPac = nome.includes("PAC");
                         var displayVal = valor;
@@ -567,7 +582,9 @@ async function calcularFreteCarrinho() {
         largura: larguraFinal
     };
 
-    const subsidio = parseFloat(CONFIG_LOJA.SubsidioFrete || 0);
+    const subsidio = moneyToFloat(CONFIG_LOJA.SubsidioFrete);
+
+
 
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
@@ -592,7 +609,7 @@ async function calcularFreteCarrinho() {
             let foundFree = false;
 
             data.opcoes.forEach((op) => {
-                let valorFinal = parseFloat(op.valor);
+                let valorFinal = moneyToFloat(op.valor);
                 const nomeServico = String(op.nome || "").toUpperCase();
                 const isPac = nomeServico.includes("PAC") || nomeServico.includes("ECONÔMICO");
                 let textoExtra = "";
@@ -652,7 +669,7 @@ async function calcularFreteCarrinho() {
 
 
 function selecionarFrete(input) {
-    freteCalculado = parseFloat(input.value);
+    freteCalculado = moneyToFloat(input.value);
     freteSelecionadoNome = input.getAttribute('data-nome');
     var c = JSON.parse(localStorage.getItem('carrinho')) || [];
     var subtotal = c.reduce((acc, i) => acc + (i.preco * i.quantidade), 0);
