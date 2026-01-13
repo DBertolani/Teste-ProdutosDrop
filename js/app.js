@@ -4,6 +4,12 @@
 var CONFIG_LOJA = {};
 var dadosClienteTemp = {};
 
+function S(v) {
+  if (v === null || v === undefined) return "";
+  return String(v).trim();
+}
+
+
 // --- 0. MÁSCARA DE CEP ---
 function mascaraCep(t) {
     let v = t.value.replace(/\D/g,"");
@@ -918,15 +924,19 @@ function buscarIdentidade() {
 
     if (dados && dados.encontrado) {
       enderecoEntregaTemp = dados;
+        
+        dadosClienteTemp.nome = String(dados.nome ?? "").trim();
+        dadosClienteTemp.sobrenome = String(dados.sobrenome ?? "").trim();
 
-      dadosClienteTemp.nome = (dados.nome || "").trim();
-      dadosClienteTemp.sobrenome = (dados.sobrenome || "").trim();
+        
+        const tel    = String(dados.telefone ?? "").trim();
+        const comp   = String(dados.complemento ?? "").trim();
+        const bairro = String(dados.bairro ?? "").trim();
+        const cidade = String(dados.cidade ?? "").trim();
+        const uf     = String(dados.uf ?? "").trim();
 
-      const tel = (dados.telefone || "").trim();
-      const comp = (dados.complemento || "").trim();
-      const bairro = (dados.bairro || "").trim();
-      const cidade = (dados.cidade || "").trim();
-      const uf = (dados.uf || "").trim();
+
+
 
       document.getElementById('resumo_dados_cliente').innerHTML = `
         <div class="small">
