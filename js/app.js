@@ -673,7 +673,7 @@ function iniciarPagamentoFinal() {
     var cliente = {
         cpf: document.getElementById('checkout_cpf').value,
         telefone: document.getElementById('checkout_telefone').value,
-        cep: document.getElementById('carrinho_cep').value, 
+        cep: document.getElementById('checkout_cep').value, 
         rua: document.getElementById('checkout_rua').value,
         numero: document.getElementById('checkout_numero').value,
         bairro: document.getElementById('checkout_bairro').value,
@@ -761,15 +761,14 @@ $(document).on('change', '#carrinho_cep', function() {
 });
 
 
-// FUNÇÃO PARA COMPARAR OS CEPS E TRAVAR O PAGAMENTO
+// 2. Validação Definitiva (A "Vigia")
 function validarCepsIdenticos() {
-    var cepCalculado = document.getElementById('carrinho_cep').value.replace(/\D/g, '');
-    // Pegamos o CEP que veio dos dados do cliente (enderecoEntregaTemp é preenchido no buscar_cliente)
-    var cepEntrega = enderecoEntregaTemp.cep ? enderecoEntregaTemp.cep.replace(/\D/g, '') : "";
+    var cepCarrinho = document.getElementById('carrinho_cep').value.replace(/\D/g, '');
+    var cepCheckout = document.getElementById('checkout_cep').value.replace(/\D/g, '');
 
-    if (cepEntrega !== "" && cepEntrega !== cepCalculado) {
+    // Se o checkout tiver um CEP e ele for diferente do carrinho
+    if (cepCheckout !== "" && cepCheckout !== cepCarrinho) {
         $("#erro_cep_divergente").fadeIn();
-        // Trava o botão de pagamento final para evitar erro de valor
         document.querySelector('#modalCheckout .btn-success').disabled = true;
     } else {
         $("#erro_cep_divergente").fadeOut();
@@ -777,24 +776,25 @@ function validarCepsIdenticos() {
     }
 }
 
-// FUNÇÃO PARA CORRIGIR: Leva o usuário de volta para validar o frete correto
+// 3. Função para recalcular o frete sem sair da tela (Upgrade)
 function corrigirCepDivergente() {
-    var novoCep = enderecoEntregaTemp.cep;
+    var novoCep = document.getElementById('checkout_cep').value;
     document.getElementById('carrinho_cep').value = novoCep;
     
-    // Fecha o checkout e volta para o carrinho
-    bootstrap.Modal.getInstance(document.getElementById('modalCheckout')).hide();
-    new bootstrap.Modal(document.getElementById('modalCarrito')).show();
-    
-    // Dispara o cálculo automático para o novo CEP
+    // Simula o clique de cálculo no carrinho (isso já está pronto no seu código)
     calcularFreteCarrinho();
     
-    // Notificação elegante de sucesso na troca
-    const alertCarro = document.getElementById('alert_carrinho');
-    alertCarro.innerText = "CEP atualizado conforme seu endereço. Escolha o frete novamente.";
-    alertCarro.style.display = 'block';
-    setTimeout(() => { alertCarro.style.display = 'none'; }, 4000);
+    // Aguarda um pouco o cálculo e libera
+    setTimeout(() => {
+        validarCepsIdenticos();
+        alert("Frete atualizado com sucesso para o novo CEP!");
+    }, 1500);
 }
+
+// 4. Vigiar mudanças no campo de CEP do Checkout em tempo real
+$(document).on('change', '#checkout_cep', function() {
+    validarCepsIdenticos();
+});
 
 
 // --- NOVO FLUXO DE IDENTIFICAÇÃO ---
@@ -838,30 +838,14 @@ function buscarIdentidade() {
     });
 }
 
-function confirmarDadosExistentes() {
-    bootstrap.Modal.getInstance(document.getElementById('modalIdentificacao')).hide();
-    
-    // Preenche os campos do checkout real
-    document.getElementById('checkout_cpf').value = document.getElementById('cpf_identificacao').value;
-    document.getElementById('checkout_telefone').value = enderecoEntregaTemp.telefone || "";
-    document.getElementById('checkout_rua').value = enderecoEntregaTemp.rua || "";
-    document.getElementById('checkout_numero').value = enderecoEntregaTemp.numero || "";
-    document.getElementById('checkout_bairro').value = enderecoEntregaTemp.bairro || "";
-    document.getElementById('checkout_cidade').value = enderecoEntregaTemp.cidade || "";
-    document.getElementById('checkout_uf').value = enderecoEntregaTemp.uf || "";
-    document.getElementById('checkout_complemento').value = enderecoEntregaTemp.complemento || "";
-    
-    new bootstrap.Modal(document.getElementById('modalCheckout')).show();
-    validarCepsIdenticos(); // Chama sua função de segurança de CEP
-}
 
+// 1. Abertura do Checkout Manual (Novo Destinatário)
 function irParaCheckoutManual(cpfInformado) {
     bootstrap.Modal.getInstance(document.getElementById('modalIdentificacao')).hide();
-    
-    // Reseta campos e preenche só o CPF
-    document.getElementById('form-checkout').reset();
+    document.getElementById('form-checkout').reset(); // Limpa tudo
     document.getElementById('checkout_cpf').value = cpfInformado || document.getElementById('cpf_identificacao').value;
     
+    // Deixa os campos vazios para o novo cadastro
     new bootstrap.Modal(document.getElementById('modalCheckout')).show();
 }
 
@@ -968,3 +952,5 @@ $(document).ready(function() {
         }
     });
 });
+
+
