@@ -674,7 +674,7 @@ $(document).on('blur', '#checkout_cpf', function() {
     }
 });
 
-function iniciarPagamentoFinal() {
+function iniciarPagamentoFinal(ev) {
     if (!validarCepCheckoutComFrete()) return;
 
     // ✅ pega nome/sobrenome do checkout (prioridade) e fallback para cache
@@ -721,11 +721,12 @@ function iniciarPagamentoFinal() {
         return Number.isFinite(n) && n >= 0 ? n : 0;
     };
 
-    var btn = event?.target;
-    if (btn) {
-        btn.innerText = "Processando...";
-        btn.disabled = true;
-    }
+var btn = ev?.target;
+if (btn) {
+    btn.innerText = "Abrindo resumo...";
+    btn.disabled = true;
+}
+
 
     var carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
     var items = carrinho.map(i => {
@@ -755,19 +756,24 @@ function iniciarPagamentoFinal() {
         dimensoes: "Calculado via Carrinho"
     };
 
-    fetch(CONFIG.SCRIPT_URL, {
-        method: 'POST',
-        body: JSON.stringify({ cliente: cliente, items: items, logistica: logisticaInfo })
-    })
-    .then(r => r.text())
-    .then(link => { window.location.href = link; })
-    .catch(e => {
-        alert("Erro ao processar.");
-        if (btn) {
-            btn.innerText = "Tentar Novamente";
-            btn.disabled = false;
-        }
-    });
+    // ✅ junta "complemento + referência" (se você tiver o campo checkout_referencia)
+const ref = (document.getElementById('checkout_referencia')?.value || "").trim();
+if (ref) {
+  cliente.complemento = (cliente.complemento ? cliente.complemento + " | " : "") + "Ref: " + ref;
+}
+
+// ✅ guarda tudo para confirmar depois
+window.__pedidoPendente = { cliente, items, logisticaInfo, btn };
+
+// ✅ abre o modal de confirmação (sem pagar ainda)
+abrirConfirmacaoPedido(cliente, items, logisticaInfo);
+    if (btn) {
+  btn.innerText = "Ir para Pagamento";
+  btn.disabled = false;
+}
+
+
+    
 }
 
 
@@ -840,9 +846,19 @@ $(document).on('change', '#checkout_cep', function() {
 // --- NOVO FLUXO DE IDENTIFICAÇÃO ---
 
 function abrirIdentificacao() {
-    bootstrap.Modal.getInstance(document.getElementById('modalCarrito')).hide();
-    new bootstrap.Modal(document.getElementById('modalIdentificacao')).show();
+  bootstrap.Modal.getInstance(document.getElementById('modalCarrito')).hide();
+
+  // reset básico
+  $('#cpf_identificacao').val('');
+  $('#resultado_busca_identidade').hide();
+  $('#btn_buscar_identidade_div').show();
+
+  // LGPD controla botão
+  $('#check_lgpd').prop('checked', false).trigger('change');
+
+  new bootstrap.Modal(document.getElementById('modalIdentificacao')).show();
 }
+
 
 
 
@@ -899,23 +915,33 @@ function buscarIdentidade() {
         btn.innerText = "Continuar";
         btn.disabled = false;
         
-        if (dados.encontrado) {
-            enderecoEntregaTemp = dados;
+if (dados.encontrado) {
+  enderecoEntregaTemp = dados;
 
-                // ✅ GUARDA o nome/sobrenome do cliente encontrado
-                    dadosClienteTemp.nome = (dados.nome || "").trim();
-                    dadosClienteTemp.sobrenome = (dados.sobrenome || "").trim();
-            
-            document.getElementById('resumo_dados_cliente').innerHTML = `
-                <div class="alert alert-secondary p-2 mb-0">
-                    <strong>${dados.nome} ${dados.sobrenome}</strong><br>
-                    ${dados.rua}, ${dados.numero}<br>
-                    CEP: ${dados.cep}
-                </div>
-            `;
-            $("#resultado_busca_identidade").slideDown();
-            $("#btn_buscar_identidade_div").hide();
-        } else {
+  dadosClienteTemp.nome = (dados.nome || "").trim();
+  dadosClienteTemp.sobrenome = (dados.sobrenome || "").trim();
+
+  const tel = (dados.telefone || "").trim();
+  const comp = (dados.complemento || "").trim();
+  const bairro = (dados.bairro || "").trim();
+  const cidade = (dados.cidade || "").trim();
+  const uf = (dados.uf || "").trim();
+
+  document.getElementById('resumo_dados_cliente').innerHTML = `
+    <div class="small">
+      <div class="fw-bold mb-1">${dadosClienteTemp.nome} ${dadosClienteTemp.sobrenome}</div>
+      <div>${dados.rua || ''}, ${dados.numero || ''}${comp ? ` - ${comp}` : ''}</div>
+      <div>${bairro ? bairro + ' - ' : ''}${cidade}/${uf}</div>
+      <div>CEP: ${dados.cep || ''}${tel ? ` | Tel: ${tel}` : ''}</div>
+    </div>
+    <div class="form-text mt-2">
+      Se estiver desatualizado, escolha <strong>Editar/atualizar</strong>.
+    </div>
+  `;
+
+  $("#resultado_busca_identidade").slideDown();
+  $("#btn_buscar_identidade_div").hide();
+} else {
             irParaCheckoutManual(cpf);
         }
     });
@@ -943,27 +969,38 @@ function buscarCepNoCheckout() {
 }
 
 // 4. Ajuste na função de confirmar para preencher o novo campo de CEP
-function confirmarDadosExistentes() {
-    bootstrap.Modal.getInstance(document.getElementById('modalIdentificacao')).hide();
-    
-    document.getElementById('checkout_cpf').value = document.getElementById('cpf_identificacao').value;
+function confirmarDadosExistentes(modo) {
+  bootstrap.Modal.getInstance(document.getElementById('modalIdentificacao')).hide();
 
-    // ✅ preenche nome/sobrenome no checkout
-    document.getElementById('checkout_nome').value = dadosClienteTemp.nome || "";
-    document.getElementById('checkout_sobrenome').value = dadosClienteTemp.sobrenome || "";
-    
-    document.getElementById('checkout_cep').value = enderecoEntregaTemp.cep || ""; // Preenche o novo campo
-    document.getElementById('checkout_telefone').value = enderecoEntregaTemp.telefone || "";
-    document.getElementById('checkout_rua').value = enderecoEntregaTemp.rua || "";
-    document.getElementById('checkout_numero').value = enderecoEntregaTemp.numero || "";
-    document.getElementById('checkout_bairro').value = enderecoEntregaTemp.bairro || "";
-    document.getElementById('checkout_cidade').value = enderecoEntregaTemp.cidade || "";
-    document.getElementById('checkout_uf').value = enderecoEntregaTemp.uf || "";
-    document.getElementById('checkout_complemento').value = enderecoEntregaTemp.complemento || "";
-    
-    new bootstrap.Modal(document.getElementById('modalCheckout')).show();
-    validarCepsIdenticos();
+  document.getElementById('checkout_cpf').value = document.getElementById('cpf_identificacao').value;
+
+  // nome/sobrenome
+  document.getElementById('checkout_nome').value = dadosClienteTemp.nome || "";
+  document.getElementById('checkout_sobrenome').value = dadosClienteTemp.sobrenome || "";
+
+  // endereço
+  document.getElementById('checkout_cep').value = enderecoEntregaTemp.cep || "";
+  document.getElementById('checkout_telefone').value = enderecoEntregaTemp.telefone || "";
+  document.getElementById('checkout_rua').value = enderecoEntregaTemp.rua || "";
+  document.getElementById('checkout_numero').value = enderecoEntregaTemp.numero || "";
+  document.getElementById('checkout_bairro').value = enderecoEntregaTemp.bairro || "";
+  document.getElementById('checkout_cidade').value = enderecoEntregaTemp.cidade || "";
+  document.getElementById('checkout_uf').value = enderecoEntregaTemp.uf || "";
+  document.getElementById('checkout_complemento').value = enderecoEntregaTemp.complemento || "";
+  const refEl = document.getElementById('checkout_referencia');
+    if (refEl) refEl.value = "";
+
+
+  // Se o modo for "usar", você pode deixar como está e só seguir.
+  // Se for "editar", foca no primeiro campo editável pra incentivar atualização.
+  new bootstrap.Modal(document.getElementById('modalCheckout')).show();
+  validarCepsIdenticos();
+
+  if (modo === 'editar') {
+    setTimeout(() => document.getElementById('checkout_telefone').focus(), 400);
+  }
 }
+
 
 // 5. Corrigir o problema do botão de carrinho sumindo
 $(document).ready(function() {
@@ -975,6 +1012,13 @@ $(document).ready(function() {
         }
     });
 });
+
+$(document).on('change', '#check_lgpd', function() {
+  const ok = this.checked;
+  $('#btn_buscar_identidade_div button').prop('disabled', !ok);
+});
+
+
 
 
 function validarCepCheckoutComFrete() {
@@ -990,4 +1034,82 @@ function validarCepCheckoutComFrete() {
 
     document.getElementById("erro_cep_divergente").style.display = "none";
     return true;
+}
+
+
+function formatBRL(v) {
+  const n = Number(v) || 0;
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function abrirConfirmacaoPedido(cliente, items, logisticaInfo) {
+  // Preenche o modal (você precisa ter os IDs do modalConfirmacaoPedido)
+  const carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
+  const subtotal = carrinho.reduce((acc, i) => acc + ((Number(i.preco) || 0) * (Number(i.quantidade) || 1)), 0);
+  const frete = Number(freteCalculado) || 0;
+  const total = subtotal + frete;
+
+  const destEl = document.getElementById('conf_destinatario');
+  const endEl  = document.getElementById('conf_endereco');
+  const itensEl= document.getElementById('conf_itens');
+  const subEl  = document.getElementById('conf_subtotal');
+  const freEl  = document.getElementById('conf_frete');
+  const totEl  = document.getElementById('conf_total');
+
+  if (destEl) destEl.innerText = `${cliente.nome} ${cliente.sobrenome} • CPF: ${cliente.cpf}`;
+
+  const linha1 = `${cliente.rua}, ${cliente.numero}${cliente.complemento ? " - " + cliente.complemento : ""}`;
+  const linha2 = `${cliente.bairro} - ${cliente.cidade}/${cliente.uf} • CEP: ${cliente.cep}`;
+  if (endEl) endEl.innerText = `${linha1}\n${linha2}`;
+
+  const itensSomenteProdutos = items.filter(it => !(String(it.title || "").toLowerCase().includes("frete")));
+  const htmlItens = itensSomenteProdutos
+    .map(it => `• ${it.title} — ${it.quantity}x ${formatBRL(it.unit_price)}`)
+    .join("<br>");
+  if (itensEl) itensEl.innerHTML = htmlItens || "<span class='text-muted'>Nenhum item</span>";
+
+  if (subEl) subEl.innerText = formatBRL(subtotal);
+  if (freEl) freEl.innerText = frete > 0 ? `${formatBRL(frete)} (${freteSelecionadoNome || "Frete"})` : formatBRL(0);
+  if (totEl) totEl.innerText = formatBRL(total);
+
+  // configura o botão "Confirmar e ir para pagamento"
+  const btnConfirmar = document.getElementById('btn_confirmar_pagamento');
+  if (btnConfirmar) {
+    btnConfirmar.onclick = efetivarPagamentoFinal;
+  }
+
+  new bootstrap.Modal(document.getElementById('modalConfirmacaoPedido')).show();
+}
+
+function efetivarPagamentoFinal() {
+  const pend = window.__pedidoPendente;
+  if (!pend) {
+    alert("Pedido pendente não encontrado. Tente novamente.");
+    return;
+  }
+
+  // fecha modal de confirmação
+  const inst = bootstrap.Modal.getInstance(document.getElementById('modalConfirmacaoPedido'));
+  if (inst) inst.hide();
+
+  const { cliente, items, logisticaInfo, btn } = pend;
+    if (btn) {
+  btn.innerText = "Processando...";
+  btn.disabled = true;
+}
+
+
+  fetch(CONFIG.SCRIPT_URL, {
+    method: 'POST',
+    body: JSON.stringify({ cliente, items, logistica: logisticaInfo })
+  })
+  .then(r => r.text())
+  .then(link => { window.location.href = link; })
+  .catch(e => {
+    alert("Erro ao processar.");
+    if (btn) {
+      btn.innerText = "Tentar Novamente";
+      btn.disabled = false;
+    }
+  });
 }
