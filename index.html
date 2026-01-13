@@ -310,6 +310,11 @@
         <input type="text" class="form-control" id="checkout_complemento" placeholder="Apto, Bloco, etc"/>
     </div>
 
+    <div class="mb-3">
+  <label class="form-label">Referência (opcional)</label>
+  <input type="text" class="form-control" id="checkout_referencia" placeholder="Ex: Próx. padaria X, portão azul, etc"/>
+</div>
+
     <div id="erro_cep_divergente" class="alert alert-danger mt-3 shadow-sm" style="display:none; font-size: 0.85rem;">
         <div class="d-flex align-items-center">
             <i class="bi bi-exclamation-shield-fill fs-4 me-2"></i>
@@ -355,26 +360,103 @@
           <label class="form-label fw-bold">Informe o CPF do destinatário:</label>
           <input type="text" class="form-control form-control-lg" id="cpf_identificacao" placeholder="000.000.000-00">
         </div>
-        <div class="form-check mb-4">
-          <input class="form-check-input" type="checkbox" id="check_lgpd" checked>
-          <label class="form-check-label small" for="check_lgpd">
-            Autorizo o uso dos meus dados para processamento deste pedido conforme a LGPD.
-          </label>
+       
+    <input class="form-check-input" type="checkbox" id="check_lgpd">
+    <label class="form-check-label small" for="check_lgpd">
+      Autorizo o uso dos meus dados para <strong>identificação do destinatário</strong> e <strong>processamento da entrega</strong>
+      (conforme LGPD). Os dados são usados somente para este pedido.
+    </label>
+    <div class="form-text">Sem essa autorização, não conseguimos buscar dados pelo CPF.</div>
+
         </div>
         <div id="resultado_busca_identidade" style="display:none;" class="p-3 bg-light rounded border mb-3">
             <h6 class="mb-2">Registro Encontrado!</h6>
             <div id="resumo_dados_cliente" class="small text-muted mb-3"></div>
+          
             <div class="d-grid gap-2">
-                <button class="btn btn-success" onclick="confirmarDadosExistentes()">Sim, usar este endereço</button>
-                <button class="btn btn-outline-primary" onclick="irParaCheckoutManual()">Não, enviar para outro endereço</button>
+              <button class="btn btn-success" onclick="confirmarDadosExistentes('usar')">
+                Usar este destinatário e endereço
+              </button>
+              <button class="btn btn-outline-primary" onclick="confirmarDadosExistentes('editar')">
+                Editar/atualizar antes de pagar
+              </button>
+              <button class="btn btn-outline-secondary" onclick="irParaCheckoutManual()">
+                Enviar para outro destinatário/endereço
+              </button>
             </div>
+
         </div>
         <div class="d-grid" id="btn_buscar_identidade_div">
-            <button class="btn btn-primary btn-lg" onclick="buscarIdentidade()">Continuar</button>
+              <button class="btn btn-primary btn-lg" id="btn_buscar_identidade" onclick="buscarIdentidade()" disabled>
+                Buscar CPF
+              </button>
+
         </div>
       </div>
     </div>
   </div>
 </div>
+
+    <div class="modal fade" id="modalConfirmacaoPedido" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content shadow-lg border-0">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">Confirme seu pedido</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="alert alert-light border mb-3">
+          <div class="d-flex justify-content-between flex-wrap gap-2">
+            <div>
+              <div class="fw-bold">Destinatário</div>
+              <div id="conf_destinatario" class="small text-muted"></div>
+            </div>
+            <div>
+              <div class="fw-bold">Entrega</div>
+              <div id="conf_endereco" class="small text-muted"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border rounded p-3 mb-3">
+          <div class="fw-bold mb-2">Itens</div>
+          <div id="conf_itens" class="small"></div>
+        </div>
+
+        <div class="d-flex justify-content-end">
+          <div style="min-width: 260px;">
+            <div class="d-flex justify-content-between">
+              <span>Subtotal</span>
+              <span id="conf_subtotal" class="fw-bold"></span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span>Frete</span>
+              <span id="conf_frete" class="fw-bold"></span>
+            </div>
+            <div class="d-flex justify-content-between border-top pt-2 mt-2">
+              <span>Total</span>
+              <span id="conf_total" class="fw-bold fs-5"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert alert-warning mt-3 mb-0 small">
+          Ao confirmar, você será direcionado para o pagamento.
+        </div>
+      </div>
+
+      <div class="modal-footer justify-content-between">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          Voltar e ajustar
+        </button>
+        <button type="button" class="btn btn-success btn-lg" id="btn_confirmar_pagamento">
+          Confirmar e ir para pagamento
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
   </body>
 </html>
