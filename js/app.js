@@ -670,6 +670,10 @@ $(document).on('blur', '#checkout_cpf', function() {
 });
 
 function iniciarPagamentoFinal() {
+if (!validarCepCheckoutComFrete()) {
+    return;
+}
+    
     var cliente = {
         cpf: document.getElementById('checkout_cpf').value,
         telefone: document.getElementById('checkout_telefone').value,
@@ -922,3 +926,17 @@ $(document).ready(function() {
 });
 
 
+function validarCepCheckoutComFrete() {
+    const cepCarrinho = document.getElementById("carrinho_cep")?.value?.replace(/\D/g, "");
+    const cepCheckout = document.getElementById("checkout_cep")?.value?.replace(/\D/g, "");
+
+    if (!cepCarrinho || !cepCheckout) return true;
+
+    if (cepCarrinho !== cepCheckout) {
+        document.getElementById("erro_cep_divergente").style.display = "block";
+        return false;
+    }
+
+    document.getElementById("erro_cep_divergente").style.display = "none";
+    return true;
+}
