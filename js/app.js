@@ -11,17 +11,45 @@ function S(v) {
 
 function moneyToFloat(v) {
   if (v === null || v === undefined) return 0;
-  // aceita: 10 | "10" | "10,00" | "R$ 10,00" | "1.234,56"
-  const s = String(v)
-    .trim()
-    .replace(/\s/g, "")
-    .replace("R$", "")
-    .replace(/\./g, "")   // remove milhar
-    .replace(",", ".")    // vírgula -> ponto
-    .replace(/[^\d.-]/g, "");
+
+  let s = String(v).trim();
+  if (!s) return 0;
+
+  // remove espaços e "R$"
+  s = s.replace(/\s/g, "").replace(/^R\$\s*/i, "");
+
+  // mantém só dígitos, vírgula, ponto e sinal
+  s = s.replace(/[^\d.,-]/g, "");
+
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
+
+  if (hasComma && hasDot) {
+    // Decide o separador decimal pelo ÚLTIMO que aparece
+    if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
+      // 1.234,56 -> 1234.56
+      s = s.replace(/\./g, "").replace(",", ".");
+    } else {
+      // 1,234.56 -> 1234.56
+      s = s.replace(/,/g, "");
+    }
+  } else if (hasComma && !hasDot) {
+    // 32,44 -> 32.44
+    s = s.replace(",", ".");
+  } else if (hasDot) {
+    // Se tiver mais de um ponto, trata os anteriores como milhar
+    // 1.234.56 -> 1234.56
+    const parts = s.split(".");
+    if (parts.length > 2) {
+      const dec = parts.pop();
+      s = parts.join("") + "." + dec;
+    }
+  }
+
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
 }
+
 
 
 
