@@ -621,7 +621,7 @@ function bloquearCheckout(bloquear) {
 // --- 7. CHECKOUT FINAL ---
 
 function irParaCheckout() {
-    bootstrap.Modal.getInstance(document.getElementById('modalCarrito')).hide();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCarrito')).hide();
     
     if(enderecoEntregaTemp.logradouro) {
         document.getElementById('checkout_rua').value = enderecoEntregaTemp.logradouro;
@@ -864,7 +864,7 @@ function abrirIdentificacao() {
 
 // 1. Abertura do Checkout Manual (Novo Destinatário)
 function irParaCheckoutManual(cpfInformado) {
-    bootstrap.Modal.getInstance(document.getElementById('modalIdentificacao')).hide();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalIdentificacao')).hide();
     document.getElementById('form-checkout').reset(); // Limpa tudo
 
         // ✅ IMPORTANTE: limpa nome/sobrenome anteriores
@@ -911,8 +911,17 @@ function buscarIdentidade() {
     })
     .then(r => r.json())
     .then(dados => {
-        btn.innerText = "Continuar";
+        btn.innerText = "Buscar CPF";
         btn.disabled = false;
+
+        .catch(err => {
+          console.error("Erro buscar_cliente:", err);
+          btn.innerText = "Buscar CPF";
+          btn.disabled = false;
+          alert("Erro ao consultar. Veja o Console (F12) para detalhes.");
+        });
+
+
         
 if (dados.encontrado) {
   enderecoEntregaTemp = dados;
@@ -969,7 +978,7 @@ function buscarCepNoCheckout() {
 
 // 4. Ajuste na função de confirmar para preencher o novo campo de CEP
 function confirmarDadosExistentes(modo) {
-  bootstrap.Modal.getInstance(document.getElementById('modalIdentificacao')).hide();
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalIdentificacao')).hide();
 
   document.getElementById('checkout_cpf').value = document.getElementById('cpf_identificacao').value;
 
