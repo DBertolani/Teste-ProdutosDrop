@@ -3,6 +3,7 @@
   --cor-principal: #0d6efd; 
   --fonte-principal: 'Poppins', sans-serif;
 }
+
 body {
   min-height: 75rem;
   padding-top: 4.5rem;
