@@ -5,71 +5,71 @@ var CONFIG_LOJA = {};
 var dadosClienteTemp = {};
 
 function S(v) {
-  if (v === null || v === undefined) return "";
-  return String(v).trim();
+    if (v === null || v === undefined) return "";
+    return String(v).trim();
 }
 
 
 // --- 0. MÁSCARA DE CEP ---
 function mascaraCep(t) {
-    let v = t.value.replace(/\D/g,"");
-    if (v.length > 5) v = v.substring(0,5) + "-" + v.substring(5, 8);
+    let v = t.value.replace(/\D/g, "");
+    if (v.length > 5) v = v.substring(0, 5) + "-" + v.substring(5, 8);
     t.value = v;
 }
 
 // --- 1. CONFIGURAÇÕES INICIAIS (AJUSTE CIRÚRGICO AQUI) ---
 function carregar_config() {
-   var url = CONFIG.SCRIPT_URL + "?rota=config&nocache=" + new Date().getTime();
-   
-   // Primeiro: Tenta carregar do Cache para ser instantâneo
-   var configCache = JSON.parse(localStorage.getItem('loja_config'));
-   if(configCache) {
-       CONFIG_LOJA = configCache;
-       aplicar_config();
-   }
+    var url = CONFIG.SCRIPT_URL + "?rota=config&nocache=" + new Date().getTime();
 
-   // Segundo: Busca na planilha e ATUALIZA o cache e a tela
-   fetch(url)
-    .then(res => res.json())
-    .then(data => {
-        if(data.erro) return;
-        var config = {};
-        if(Array.isArray(data)) {
-            data.forEach(l => { if(l.Chave && l.Valor) config[l.Chave] = l.Valor; });
-        } else { config = data; }
-        
-        localStorage.setItem("loja_config", JSON.stringify(config));
-        CONFIG_LOJA = config;
+    // Primeiro: Tenta carregar do Cache para ser instantâneo
+    var configCache = JSON.parse(localStorage.getItem('loja_config'));
+    if (configCache) {
+        CONFIG_LOJA = configCache;
         aplicar_config();
-        
-        // DISPARO OBRIGATÓRIO: Carrega os produtos após ter a configuração
-        carregar_produtos();
-    })
-    .catch(e => {
-        console.log("Erro config", e);
-        // Se a internet falhar, tenta carregar produtos mesmo assim
-        carregar_produtos();
-    });
+    }
+
+    // Segundo: Busca na planilha e ATUALIZA o cache e a tela
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (data.erro) return;
+            var config = {};
+            if (Array.isArray(data)) {
+                data.forEach(l => { if (l.Chave && l.Valor) config[l.Chave] = l.Valor; });
+            } else { config = data; }
+
+            localStorage.setItem("loja_config", JSON.stringify(config));
+            CONFIG_LOJA = config;
+            aplicar_config();
+
+            // DISPARO OBRIGATÓRIO: Carrega os produtos após ter a configuração
+            carregar_produtos();
+        })
+        .catch(e => {
+            console.log("Erro config", e);
+            // Se a internet falhar, tenta carregar produtos mesmo assim
+            carregar_produtos();
+        });
 }
 
 function aplicar_config() {
-    if(CONFIG_LOJA.CorPrincipal) document.documentElement.style.setProperty('--cor-principal', CONFIG_LOJA.CorPrincipal);
-    
+    if (CONFIG_LOJA.CorPrincipal) document.documentElement.style.setProperty('--cor-principal', CONFIG_LOJA.CorPrincipal);
+
     var titulo = CONFIG_LOJA.TituloAba || CONFIG_LOJA.NomeDoSite;
-    if(titulo) {
+    if (titulo) {
         document.title = titulo;
         var seoTitle = document.getElementById('seo_titulo');
-        if(seoTitle) seoTitle.innerText = titulo;
+        if (seoTitle) seoTitle.innerText = titulo;
     }
-    
-    if(CONFIG_LOJA.DescricaoSEO) {
+
+    if (CONFIG_LOJA.DescricaoSEO) {
         var metaDesc = document.getElementById('seo_descricao');
-        if(metaDesc) metaDesc.setAttribute("content", CONFIG_LOJA.DescricaoSEO);
+        if (metaDesc) metaDesc.setAttribute("content", CONFIG_LOJA.DescricaoSEO);
     }
-    
+
     var logo = document.getElementById('logo_site');
-    if(logo) {
-        if(CONFIG_LOJA.LogoDoSite && CONFIG_LOJA.LogoDoSite.trim() !== "") {
+    if (logo) {
+        if (CONFIG_LOJA.LogoDoSite && CONFIG_LOJA.LogoDoSite.trim() !== "") {
             var src = CONFIG_LOJA.LogoDoSite.replace('/view', '/preview');
             logo.innerHTML = `<img src="${src}" alt="${CONFIG_LOJA.NomeDoSite}" style="max-height:40px; margin-right:10px;">`;
         } else if (CONFIG_LOJA.NomeDoSite) { logo.innerText = CONFIG_LOJA.NomeDoSite; }
@@ -79,14 +79,14 @@ function aplicar_config() {
 // --- 2. MENU E CATEGORIAS ---
 function carregar_categorias(produtos) {
     const menu = document.getElementById('categoria_menu');
-    if(!menu) return;
+    if (!menu) return;
     menu.innerHTML = `<li><a class="dropdown-item fw-bold" href="#" onclick="limpar_filtros(); fechar_menu_mobile()">Ver Todos</a></li>`;
     menu.innerHTML += `<li><hr class="dropdown-divider"></li>`;
-    
+
     if (CONFIG_LOJA.MostrarCategorias === "FALSE") return;
 
-    const categorias = [...new Set(produtos.map(p => p.Categoria))].filter(c => c); 
-    if(categorias.length > 0) {
+    const categorias = [...new Set(produtos.map(p => p.Categoria))].filter(c => c);
+    if (categorias.length > 0) {
         categorias.forEach(cat => {
             var li = document.createElement('li');
             li.innerHTML = `<a class="dropdown-item" href="#" onclick="mostrar_produtos_por_categoria('${cat}'); fechar_menu_mobile()">${cat}</a>`;
@@ -110,27 +110,27 @@ function fechar_menu_mobile() {
 
 // --- 3. PRODUTOS E LOADING ---
 function carregar_produtos() {
-  mostrar_skeleton(true);
-  var url = CONFIG.SCRIPT_URL + "?rota=produtos&nocache=" + new Date().getTime();
-  fetch(url).then(r => r.json()).then(data => {
-     mostrar_skeleton(false); 
-     localStorage.setItem("calçados", JSON.stringify(data));
-     carregar_categorias(data); 
-     mostrar_produtos(data);
-  });
+    mostrar_skeleton(true);
+    var url = CONFIG.SCRIPT_URL + "?rota=produtos&nocache=" + new Date().getTime();
+    fetch(url).then(r => r.json()).then(data => {
+        mostrar_skeleton(false);
+        localStorage.setItem("calçados", JSON.stringify(data));
+        carregar_categorias(data);
+        mostrar_produtos(data);
+    });
 }
 
 function mostrar_skeleton(exibir) {
     const container = document.getElementById('loading_skeleton_container');
     const boxes = document.getElementById('loading_skeleton_boxes');
-    if(!container) return;
-    
-    var colClass = 'col-md-3';
-    if(CONFIG_LOJA.ColunasDesktop == 3) colClass = 'col-md-4'; 
+    if (!container) return;
 
-    if(exibir) {
+    var colClass = 'col-md-3';
+    if (CONFIG_LOJA.ColunasDesktop == 3) colClass = 'col-md-4';
+
+    if (exibir) {
         boxes.innerHTML = '';
-        for(let i=0; i<4; i++) {
+        for (let i = 0; i < 4; i++) {
             boxes.innerHTML += `
             <div class="${colClass} col-6"> 
                 <div class="card shadow-sm h-100 border-0">
@@ -148,25 +148,25 @@ function mostrar_skeleton(exibir) {
 }
 
 function mostrar_produtos(produtos) {
-  const container = document.getElementById('div_produtos');
-  container.innerHTML = '';
-  
-  if(produtos.length === 0) {
-      container.innerHTML = '<div class="col-12 text-center mt-5"><p class="text-muted">Nenhum produto encontrado.</p><button class="btn btn-outline-secondary" onclick="limpar_filtros()">Ver Todos</button></div>';
-      return;
-  }
+    const container = document.getElementById('div_produtos');
+    container.innerHTML = '';
 
-  var colClass = 'col-md-3';
-  if(CONFIG_LOJA.ColunasDesktop == 3) colClass = 'col-md-4'; 
-  if(CONFIG_LOJA.ColunasDesktop == 2) colClass = 'col-md-6';
+    if (produtos.length === 0) {
+        container.innerHTML = '<div class="col-12 text-center mt-5"><p class="text-muted">Nenhum produto encontrado.</p><button class="btn btn-outline-secondary" onclick="limpar_filtros()">Ver Todos</button></div>';
+        return;
+    }
 
-  produtos.forEach(p => {
-    var altText = p.Produto + " - " + p.Categoria; 
-    var infoExtra = (p.Tamanhos || p.Variacoes) ? `<small>Opções disponíveis</small>` : '';
-    const item = document.createElement('div');
-    item.className = `${colClass} col-6 mt-4`;
-    
-    item.innerHTML = `
+    var colClass = 'col-md-3';
+    if (CONFIG_LOJA.ColunasDesktop == 3) colClass = 'col-md-4';
+    if (CONFIG_LOJA.ColunasDesktop == 2) colClass = 'col-md-6';
+
+    produtos.forEach(p => {
+        var altText = p.Produto + " - " + p.Categoria;
+        var infoExtra = (p.Tamanhos || p.Variacoes) ? `<small>Opções disponíveis</small>` : '';
+        const item = document.createElement('div');
+        item.className = `${colClass} col-6 mt-4`;
+
+        item.innerHTML = `
       <div class="card shadow-sm h-100">
           <div style="height: 250px; display: flex; align-items: center; justify-content: center; background: #fff;">
              <img src="${p.ImagemPrincipal}" alt="${altText}" loading="lazy" style="max-height: 100%; max-width: 100%; object-fit: contain; padding: 10px;"/>
@@ -183,8 +183,8 @@ function mostrar_produtos(produtos) {
               </div>
           </div>
       </div>`;
-    container.appendChild(item);
-  });
+        container.appendChild(item);
+    });
 }
 
 function limpar_filtros() {
@@ -194,7 +194,7 @@ function limpar_filtros() {
 }
 
 // --- 4. MODAL DO PRODUTO (Ver + Simular Frete Individual) ---
-var produtoAtual = null; 
+var produtoAtual = null;
 var variacaoSelecionada = null;
 
 function abrir_modal_ver(id) {
@@ -202,7 +202,7 @@ function abrir_modal_ver(id) {
     produtoAtual = dados.find(p => p.ID === id);
     if (!produtoAtual) return;
 
-    variacaoSelecionada = null; 
+    variacaoSelecionada = null;
     document.getElementById('modalTituloProduto').innerText = produtoAtual.Produto;
     document.getElementById('modalPreco').innerText = 'R$ ' + parseFloat(produtoAtual.Preço).toFixed(2);
     document.getElementById('modalDescricaoTexto').innerText = produtoAtual.Descrição || "";
@@ -210,12 +210,12 @@ function abrir_modal_ver(id) {
     var containerImagens = document.getElementById('carouselImagensContainer');
     containerImagens.innerHTML = '';
     var imgs = [produtoAtual.ImagemPrincipal];
-    if(produtoAtual.ImagensExtras) imgs = imgs.concat(produtoAtual.ImagensExtras.split(',').map(s=>s.trim()));
-    
+    if (produtoAtual.ImagensExtras) imgs = imgs.concat(produtoAtual.ImagensExtras.split(',').map(s => s.trim()));
+
     imgs.forEach((src, i) => {
-        if(src.length > 4) {
+        if (src.length > 4) {
             var div = document.createElement('div');
-            div.className = i===0 ? 'carousel-item active' : 'carousel-item';
+            div.className = i === 0 ? 'carousel-item active' : 'carousel-item';
             div.innerHTML = `<img src="${src}" class="d-block w-100" style="height: 300px; object-fit: contain; background: #f8f9fa;">`;
             containerImagens.appendChild(div);
         }
@@ -237,7 +237,7 @@ function abrir_modal_ver(id) {
             `;
         });
     } else {
-        variacaoSelecionada = "Único"; 
+        variacaoSelecionada = "Único";
     }
 
     var divMedidas = document.getElementById('areaTabelaMedidas');
@@ -248,21 +248,21 @@ function abrir_modal_ver(id) {
         divMedidas.style.display = 'none';
     }
 
-    document.getElementById('btnAdicionarModal').onclick = function() {
+    document.getElementById('btnAdicionarModal').onclick = function () {
         if (!variacaoSelecionada) {
             alert("Por favor, selecione uma opção (Tamanho/Variação).");
             return;
         }
         var nomeFinal = produtoAtual.Produto;
-        var freteGratisUF = produtoAtual.FreteGratis || ""; 
-        
+        var freteGratisUF = produtoAtual.FreteGratis || "";
+
         adicionar_carrinho(
-            produtoAtual.ID + "_" + variacaoSelecionada, 
-            nomeFinal, 
-            produtoAtual.Preço, 
-            produtoAtual.ImagemPrincipal, 
+            produtoAtual.ID + "_" + variacaoSelecionada,
+            nomeFinal,
+            produtoAtual.Preço,
+            produtoAtual.ImagemPrincipal,
             freteGratisUF,
-            variacaoSelecionada 
+            variacaoSelecionada
         );
         bootstrap.Modal.getInstance(document.getElementById('modalProduto')).hide();
     };
@@ -270,7 +270,7 @@ function abrir_modal_ver(id) {
     // Reseta simulador individual
     document.getElementById('resultadoFreteIndividual').innerHTML = "";
     document.getElementById('inputSimulaCepIndividual').value = "";
-    document.getElementById('btnSimularFreteIndividual').onclick = function() {
+    document.getElementById('btnSimularFreteIndividual').onclick = function () {
         simular_frete_produto_individual(produtoAtual);
     };
 
@@ -287,7 +287,7 @@ function simular_frete_produto_individual(produto) {
 
     var btn = document.getElementById('btnSimularFreteIndividual');
     var res = document.getElementById('resultadoFreteIndividual');
-    
+
     btn.innerText = "...";
     btn.disabled = true;
     res.innerHTML = "Calculando...";
@@ -307,54 +307,54 @@ function simular_frete_produto_individual(produto) {
         method: 'POST',
         body: JSON.stringify(dadosFrete)
     })
-    .then(r => r.json())
-    .then(data => {
-        btn.innerText = "OK";
-        btn.disabled = false;
-        
-        if (data.erro) {
-            res.innerHTML = `<span class="text-danger">${data.erro}</span>`;
-            return;
-        }
+        .then(r => r.json())
+        .then(data => {
+            btn.innerText = "OK";
+            btn.disabled = false;
 
-        fetch(`https://viacep.com.br/ws/${cep}/json/`)
-        .then(rv => rv.json())
-        .then(cepData => {
-            var ufDestino = cepData.uf || "";
-            var html = '<ul class="list-unstyled mt-2">';
-            var ehGratis = produto.FreteGratis && produto.FreteGratis.includes(ufDestino);
+            if (data.erro) {
+                res.innerHTML = `<span class="text-danger">${data.erro}</span>`;
+                return;
+            }
 
-            data.opcoes.forEach(op => {
-                var valor = parseFloat(op.valor);
-                var nome = op.nome.toUpperCase();
-                var isPac = nome.includes("PAC");
-                var displayVal = valor;
-                var tag = "";
+            fetch(`https://viacep.com.br/ws/${cep}/json/`)
+                .then(rv => rv.json())
+                .then(cepData => {
+                    var ufDestino = cepData.uf || "";
+                    var html = '<ul class="list-unstyled mt-2">';
+                    var ehGratis = produto.FreteGratis && produto.FreteGratis.includes(ufDestino);
 
-                if(ehGratis) {
-                    if(isPac) {
-                        displayVal = 0;
-                        tag = '<span class="badge bg-success">Grátis</span>';
-                    } else {
-                        displayVal = Math.max(0, valor - subsidio);
-                        tag = '<span class="badge bg-info text-dark">Desconto</span>';
-                    }
-                } else {
-                    displayVal = Math.max(0, valor - subsidio);
-                    if(subsidio > 0) tag = '<span class="badge bg-info text-dark">Desconto</span>';
-                }
-                html += `<li><strong>${op.nome}</strong>: R$ ${displayVal.toFixed(2)} <small class="text-muted">(${op.prazo}d)</small> ${tag}</li>`;
-            });
-            html += '</ul>';
-            res.innerHTML = html;
+                    data.opcoes.forEach(op => {
+                        var valor = parseFloat(op.valor);
+                        var nome = op.nome.toUpperCase();
+                        var isPac = nome.includes("PAC");
+                        var displayVal = valor;
+                        var tag = "";
+
+                        if (ehGratis) {
+                            if (isPac) {
+                                displayVal = 0;
+                                tag = '<span class="badge bg-success">Grátis</span>';
+                            } else {
+                                displayVal = Math.max(0, valor - subsidio);
+                                tag = '<span class="badge bg-info text-dark">Desconto</span>';
+                            }
+                        } else {
+                            displayVal = Math.max(0, valor - subsidio);
+                            if (subsidio > 0) tag = '<span class="badge bg-info text-dark">Desconto</span>';
+                        }
+                        html += `<li><strong>${op.nome}</strong>: R$ ${displayVal.toFixed(2)} <small class="text-muted">(${op.prazo}d)</small> ${tag}</li>`;
+                    });
+                    html += '</ul>';
+                    res.innerHTML = html;
+                });
+        })
+        .catch(e => {
+            console.error(e);
+            btn.innerText = "OK";
+            btn.disabled = false;
+            res.innerHTML = "Erro ao calcular.";
         });
-    })
-    .catch(e => {
-        console.error(e);
-        btn.innerText = "OK";
-        btn.disabled = false;
-        res.innerHTML = "Erro ao calcular.";
-    });
 }
 
 
@@ -362,28 +362,28 @@ function simular_frete_produto_individual(produto) {
 
 var freteCalculado = 0;
 var freteSelecionadoNome = "";
-var enderecoEntregaTemp = {}; 
+var enderecoEntregaTemp = {};
 
 function adicionar_carrinho(id, prod, preco, img, freteGratisUF, variacao) {
     var c = JSON.parse(localStorage.getItem('carrinho')) || [];
     var existe = c.find(i => i.id === id);
-    
-    if(existe) {
-        existe.quantidade++; 
+
+    if (existe) {
+        existe.quantidade++;
     } else {
         c.push({
-            id: id, 
-            producto: prod, 
-            preco: preco, 
-            imagem: img, 
-            quantidade: 1, 
+            id: id,
+            producto: prod,
+            preco: preco,
+            imagem: img,
+            quantidade: 1,
             freteGratisUF: freteGratisUF,
-            variacao: variacao 
+            variacao: variacao
         });
     }
     localStorage.setItem('carrinho', JSON.stringify(c));
     atualizar_carrinho();
-    
+
     freteCalculado = 0;
     freteSelecionadoNome = "";
     document.getElementById('carrinho_opcoes_frete').innerHTML = "";
@@ -393,7 +393,7 @@ function adicionar_carrinho(id, prod, preco, img, freteGratisUF, variacao) {
 function editar_item_carrinho(idComVariacao) {
     var c = JSON.parse(localStorage.getItem('carrinho')) || [];
     var item = c.find(i => i.id === idComVariacao);
-    
+
     if (item) {
         var idProdutoOriginal = idComVariacao.split('_')[0];
         remover_carrinho(idComVariacao);
@@ -407,9 +407,9 @@ function editar_item_carrinho(idComVariacao) {
 function mudar_quantidade(id, delta) {
     var c = JSON.parse(localStorage.getItem('carrinho')) || [];
     var item = c.find(i => i.id === id);
-    if(item) {
+    if (item) {
         item.quantidade += delta;
-        if(item.quantidade <= 0) {
+        if (item.quantidade <= 0) {
             c.splice(c.findIndex(i => i.id === id), 1);
         }
         localStorage.setItem('carrinho', JSON.stringify(c));
@@ -435,8 +435,8 @@ function atualizar_carrinho() {
     var div = document.getElementById('div_carrito');
     div.innerHTML = '';
     var subtotal = 0;
-    
-    if(c.length === 0) {
+
+    if (c.length === 0) {
         div.innerHTML = '<p class="text-center text-muted">Seu carrinho está vazio.</p>';
         document.getElementById('total_carro_final').innerText = 'R$ 0.00';
         document.getElementById('valorTotal').innerText = 'R$ 0.00';
@@ -444,13 +444,13 @@ function atualizar_carrinho() {
     }
 
     c.forEach(i => {
-        var textoVariacao = (i.variacao && i.variacao !== 'Único') 
-            ? `<div class="badge bg-secondary mt-1">Opção: ${i.variacao}</div>` 
+        var textoVariacao = (i.variacao && i.variacao !== 'Único')
+            ? `<div class="badge bg-secondary mt-1">Opção: ${i.variacao}</div>`
             : '';
 
         var row = document.createElement('div');
         row.className = 'd-flex justify-content-between align-items-center mb-3 border-bottom pb-2';
-        
+
         var btnEditar = (i.variacao && i.variacao !== 'Único')
             ? `<button class="btn btn-sm btn-outline-primary me-1" onclick="editar_item_carrinho('${i.id}')" title="Editar Opção"><i class="bi bi-pencil"></i></button>`
             : '';
@@ -472,7 +472,7 @@ function atualizar_carrinho() {
         </div>
 
         <div class="text-end d-flex flex-column align-items-end" style="width: 25%;">
-             <div style="font-weight:bold; font-size: 0.9rem; margin-bottom: 5px;">R$ ${(i.preco*i.quantidade).toFixed(2)}</div>
+             <div style="font-weight:bold; font-size: 0.9rem; margin-bottom: 5px;">R$ ${(i.preco * i.quantidade).toFixed(2)}</div>
              <div>
                 ${btnEditar}
                 <button class="btn btn-sm btn-outline-danger" onclick="remover_carrinho('${i.id}')" title="Excluir Item">
@@ -492,37 +492,51 @@ function atualizarTotalFinal(subtotal) {
     var total = subtotal + freteCalculado;
     document.getElementById('resumo_frete').innerText = 'R$ ' + freteCalculado.toFixed(2);
     document.getElementById('total_carro_final').innerText = 'R$ ' + total.toFixed(2);
-    
+
     var btnTotal = document.getElementById('valorTotal');
-    if(btnTotal) btnTotal.innerText = 'R$ ' + total.toFixed(2);
+    if (btnTotal) btnTotal.innerText = 'R$ ' + total.toFixed(2);
 }
 
 // --- 6. FRETE NO CARRINHO ---
 
 function buscarEnderecoSimples(cep) {
     cep = cep.replace(/\D/g, '');
-    if(cep.length === 8) {
+    if (cep.length === 8) {
         fetch(`https://viacep.com.br/ws/${cep}/json/`)
-        .then(r => r.json())
-        .then(d => {
-            if(!d.erro) {
-                document.getElementById('carrinho_endereco_resumo').innerText = `${d.localidade}/${d.uf}`;
-                enderecoEntregaTemp = d; 
-            }
-        });
+            .then(r => r.json())
+            .then(d => {
+                if (!d.erro) {
+                    document.getElementById('carrinho_endereco_resumo').innerText = `${d.localidade}/${d.uf}`;
+                    enderecoEntregaTemp = d;
+                }
+            });
     }
 }
 
-function calcularFreteCarrinho() {
+async function calcularFreteCarrinho() {
     var cep = document.getElementById('carrinho_cep').value.replace(/\D/g, '');
     if (cep.length !== 8) { alert("CEP inválido"); return; }
-    
+
     var carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
-    if(carrinho.length === 0) return;
+    if (carrinho.length === 0) return;
 
     var divOpcoes = document.getElementById('carrinho_opcoes_frete');
     divOpcoes.innerHTML = "Calculando...";
     bloquearCheckout(true);
+
+    // ✅ garante UF SEM depender do blur
+    let ufDestino = "";
+    try {
+        const rCep = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        const dCep = await rCep.json();
+        if (!dCep.erro) {
+            ufDestino = dCep.uf || "";
+            document.getElementById('carrinho_endereco_resumo').innerText = `${dCep.localidade}/${dCep.uf}`;
+            enderecoEntregaTemp = dCep;
+        }
+    } catch (e) {
+        console.warn("Falha ao buscar UF no ViaCEP", e);
+    }
 
     var todosProdutos = JSON.parse(localStorage.getItem('calçados')) || [];
     var pesoTotal = 0;
@@ -539,7 +553,7 @@ function calcularFreteCarrinho() {
         }
     });
 
-    var aresta = Math.pow(volumeTotal, 1/3);
+    var aresta = Math.pow(volumeTotal, 1 / 3);
     var alturaFinal = Math.max(15, Math.ceil(aresta));
     var larguraFinal = Math.max(15, Math.ceil(aresta));
     var compFinal = Math.max(20, Math.ceil(aresta));
@@ -547,66 +561,95 @@ function calcularFreteCarrinho() {
     var dadosFrete = {
         op: "calcular_frete",
         cep: cep,
-        peso: pesoTotal.toFixed(2), 
-        comprimento: compFinal, 
-        altura: alturaFinal, 
+        peso: pesoTotal.toFixed(2),
+        comprimento: compFinal,
+        altura: alturaFinal,
         largura: larguraFinal
     };
+
+    const subsidio = parseFloat(CONFIG_LOJA.SubsidioFrete || 0);
 
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
         body: JSON.stringify(dadosFrete)
     })
-    .then(r => r.json())
-    .then(data => {
-        if (data.erro) {
-            divOpcoes.innerHTML = `<span class="text-danger">${data.erro}</span>`;
-        } else if (data.opcoes) {
-            var estadoDestino = enderecoEntregaTemp.uf || ""; 
-            var html = '<div class="list-group">';
-            var subsidio = parseFloat(CONFIG_LOJA.SubsidioFrete || 0);
-            
-            data.opcoes.forEach((op, index) => {
-               var ehGratis = false;
-               if(estadoDestino) {
-                   ehGratis = carrinho.some(item => item.freteGratisUF && item.freteGratisUF.includes(estadoDestino));
-               }
+        .then(r => r.json())
+        .then(data => {
+            if (data.erro) {
+                divOpcoes.innerHTML = `<span class="text-danger">${data.erro}</span>`;
+                return;
+            }
 
-               var valorFinal = parseFloat(op.valor);
-               var nomeServico = op.nome.toUpperCase();
-               var textoExtra = "";
-               var isPac = nomeServico.includes("PAC") || nomeServico.includes("ECONÔMICO");
+            if (!data.opcoes) return;
 
-               if (ehGratis) {
-                   if (isPac) {
-                       valorFinal = 0;
-                       textoExtra = '<span class="badge bg-success ms-2">GRÁTIS</span>';
-                   } else {
-                       valorFinal = Math.max(0, valorFinal - subsidio);
-                       textoExtra = '<span class="badge bg-info text-dark ms-2">Desconto Aplicado</span>';
-                   }
-               } else {
-                   if(subsidio > 0) {
-                       valorFinal = Math.max(0, valorFinal - subsidio);
-                       textoExtra = `<span class="badge bg-info text-dark ms-2">Desconto Aplicado</span>`;
-                   }
-               }
+            // ✅ frete grátis: se QUALQUER item tem aquele UF na lista
+            const ehGratis = !!ufDestino && carrinho.some(item =>
+                item.freteGratisUF && String(item.freteGratisUF).includes(ufDestino)
+            );
 
-               html += `
-               <label class="list-group-item d-flex justify-content-between align-items-center">
-                  <div>
-                    <input class="form-check-input me-1" type="radio" name="freteRadio" value="${valorFinal}" data-nome="${op.nome}" onchange="selecionarFrete(this)">
-                    ${op.nome} (${op.prazo} dias)
-                    ${textoExtra}
-                  </div>
-                  <span class="fw-bold">R$ ${valorFinal.toFixed(2)}</span>
-               </label>`;
+            let html = '<div class="list-group">';
+            let autoSelectEl = null;
+            let foundFree = false;
+
+            data.opcoes.forEach((op) => {
+                let valorFinal = parseFloat(op.valor);
+                const nomeServico = String(op.nome || "").toUpperCase();
+                const isPac = nomeServico.includes("PAC") || nomeServico.includes("ECONÔMICO");
+                let textoExtra = "";
+
+                if (ehGratis) {
+                    if (isPac) {
+                        valorFinal = 0;
+                        textoExtra = '<span class="badge bg-success ms-2">GRÁTIS</span>';
+                        foundFree = true;
+                    } else {
+                        valorFinal = Math.max(0, valorFinal - subsidio);
+                        textoExtra = '<span class="badge bg-info text-dark ms-2">Desconto Aplicado</span>';
+                    }
+                } else {
+                    if (subsidio > 0) {
+                        valorFinal = Math.max(0, valorFinal - subsidio);
+                        textoExtra = '<span class="badge bg-info text-dark ms-2">Desconto Aplicado</span>';
+                    }
+                }
+
+                const idRadio = `frete_${nomeServico.replace(/\W+/g, '_')}_${op.prazo}`;
+                html += `
+        <label class="list-group-item d-flex justify-content-between align-items-center" for="${idRadio}">
+          <div>
+            <input id="${idRadio}" class="form-check-input me-2" type="radio" name="freteRadio"
+              value="${valorFinal}" data-nome="${op.nome}"
+              onchange="selecionarFrete(this)">
+            ${op.nome} (${op.prazo} dias)
+            ${textoExtra}
+          </div>
+          <span class="fw-bold">R$ ${valorFinal.toFixed(2)}</span>
+        </label>
+      `;
+
+                // auto-seleção: prefere grátis, senão pega a 1ª opção
+                if (!autoSelectEl) autoSelectEl = { id: idRadio, valor: valorFinal, nome: op.nome };
+                if (valorFinal === 0 && !foundFree) autoSelectEl = { id: idRadio, valor: valorFinal, nome: op.nome };
             });
+
             html += '</div>';
             divOpcoes.innerHTML = html;
-        }
-    });
+
+            // ✅ auto-seleciona (mostra valor atualizado sem o usuário ter que clicar)
+            setTimeout(() => {
+                const el = document.getElementById(autoSelectEl?.id);
+                if (el) {
+                    el.checked = true;
+                    selecionarFrete(el);
+                }
+            }, 0);
+        })
+        .catch(err => {
+            console.error(err);
+            divOpcoes.innerHTML = `<span class="text-danger">Erro ao calcular frete.</span>`;
+        });
 }
+
 
 function selecionarFrete(input) {
     freteCalculado = parseFloat(input.value);
@@ -620,62 +663,62 @@ function selecionarFrete(input) {
 function bloquearCheckout(bloquear) {
     var btn = document.getElementById('btn_pagar');
     var msg = document.getElementById('msg_falta_frete');
-    if(btn) btn.disabled = bloquear;
-    if(msg) msg.style.display = bloquear ? 'block' : 'none';
+    if (btn) btn.disabled = bloquear;
+    if (msg) msg.style.display = bloquear ? 'block' : 'none';
 }
 
 // --- 7. CHECKOUT FINAL ---
 
 function irParaCheckout() {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCarrito')).hide();
-    
-    if(enderecoEntregaTemp.logradouro) {
+
+    if (enderecoEntregaTemp.logradouro) {
         document.getElementById('checkout_rua').value = enderecoEntregaTemp.logradouro;
         document.getElementById('checkout_bairro').value = enderecoEntregaTemp.bairro;
         document.getElementById('checkout_cidade').value = enderecoEntregaTemp.localidade;
         document.getElementById('checkout_uf').value = enderecoEntregaTemp.uf;
         setTimeout(() => document.getElementById('checkout_numero').focus(), 500);
     }
-    
+
     new bootstrap.Modal(document.getElementById('modalCheckout')).show();
 }
 
 // --- NOVO: BUSCA AUTOMÁTICA DE CLIENTE POR CPF ---
-$(document).on('blur', '#checkout_cpf', function() {
+$(document).on('blur', '#checkout_cpf', function () {
     var cpf = $(this).val().replace(/\D/g, '');
     if (cpf.length === 11) {
         fetch(CONFIG.SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ op: "buscar_cliente", cpf: cpf })
         })
-        .then(r => r.json())
-        .then(dados => {
-            if (dados.encontrado) {
-                dadosClienteTemp.nome = dados.nome || "";
-                dadosClienteTemp.sobrenome = dados.sobrenome || "";
+            .then(r => r.json())
+            .then(dados => {
+                if (dados.encontrado) {
+                    dadosClienteTemp.nome = dados.nome || "";
+                    dadosClienteTemp.sobrenome = dados.sobrenome || "";
 
-                enderecoEntregaTemp.cep = dados.cep; // <-- ADICIONADO AQUI para a segurança funcionar
-                // Exibe o aviso bonito em vez do confirm do navegador
-                $("#aviso_cpf_encontrado").fadeIn();
-                
-                // Configura o botão para preencher os dados se o usuário aceitar
-                document.getElementById('btn_usar_dados_antigos').onclick = function() {
-                    document.getElementById('checkout_telefone').value = dados.telefone || "";
-                    document.getElementById('checkout_rua').value = dados.rua || "";
-                    document.getElementById('checkout_numero').value = dados.numero || "";
-                    document.getElementById('checkout_bairro').value = dados.bairro || "";
-                    document.getElementById('checkout_cidade').value = dados.cidade || "";
-                    document.getElementById('checkout_uf').value = dados.uf || "";
-                    document.getElementById('checkout_complemento').value = dados.complemento || "";
-                    
-                    // Validação Crítica de CEP
-                    if (dados.cep && dados.cep.replace(/\D/g,'') !== document.getElementById('carrinho_cep').value.replace(/\D/g,'')) {
-                        alert("Atenção: O endereço cadastrado tem um CEP diferente do usado no cálculo do frete. Por favor, verifique se deseja manter o endereço ou recalcular o frete.");
-                    }
-                    $("#aviso_cpf_encontrado").fadeOut();
-                };
-            }
-        });
+                    enderecoEntregaTemp.cep = dados.cep; // <-- ADICIONADO AQUI para a segurança funcionar
+                    // Exibe o aviso bonito em vez do confirm do navegador
+                    $("#aviso_cpf_encontrado").fadeIn();
+
+                    // Configura o botão para preencher os dados se o usuário aceitar
+                    document.getElementById('btn_usar_dados_antigos').onclick = function () {
+                        document.getElementById('checkout_telefone').value = dados.telefone || "";
+                        document.getElementById('checkout_rua').value = dados.rua || "";
+                        document.getElementById('checkout_numero').value = dados.numero || "";
+                        document.getElementById('checkout_bairro').value = dados.bairro || "";
+                        document.getElementById('checkout_cidade').value = dados.cidade || "";
+                        document.getElementById('checkout_uf').value = dados.uf || "";
+                        document.getElementById('checkout_complemento').value = dados.complemento || "";
+
+                        // Validação Crítica de CEP
+                        if (dados.cep && dados.cep.replace(/\D/g, '') !== document.getElementById('carrinho_cep').value.replace(/\D/g, '')) {
+                            alert("Atenção: O endereço cadastrado tem um CEP diferente do usado no cálculo do frete. Por favor, verifique se deseja manter o endereço ou recalcular o frete.");
+                        }
+                        $("#aviso_cpf_encontrado").fadeOut();
+                    };
+                }
+            });
     }
 });
 
@@ -726,11 +769,11 @@ function iniciarPagamentoFinal(ev) {
         return Number.isFinite(n) && n >= 0 ? n : 0;
     };
 
-var btn = ev?.target;
-if (btn) {
-    btn.innerText = "Abrindo resumo...";
-    btn.disabled = true;
-}
+    var btn = ev?.target;
+    if (btn) {
+        btn.innerText = "Abrindo resumo...";
+        btn.disabled = true;
+    }
 
 
     var carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
@@ -762,40 +805,49 @@ if (btn) {
     };
 
     // ✅ junta "complemento + referência" (se você tiver o campo checkout_referencia)
-const ref = (document.getElementById('checkout_referencia')?.value || "").trim();
-if (ref) {
-  cliente.complemento = (cliente.complemento ? cliente.complemento + " | " : "") + "Ref: " + ref;
-}
+    const ref = (document.getElementById('checkout_referencia')?.value || "").trim();
+    if (ref) {
+        cliente.complemento = (cliente.complemento ? cliente.complemento + " | " : "") + "Ref: " + ref;
+    }
 
-// ✅ guarda tudo para confirmar depois
-window.__pedidoPendente = { cliente, items, logisticaInfo, btn };
+    // ✅ guarda tudo para confirmar depois
+    window.__pedidoPendente = { cliente, items, logisticaInfo, btn };
 
-// ✅ abre o modal de confirmação (sem pagar ainda)
-abrirConfirmacaoPedido(cliente, items, logisticaInfo);
+    // ✅ abre o modal de confirmação (sem pagar ainda)
+    abrirConfirmacaoPedido(cliente, items, logisticaInfo);
     if (btn) {
-  btn.innerText = "Ir para Pagamento";
-  btn.disabled = false;
-}
+        btn.innerText = "Ir para Pagamento";
+        btn.disabled = false;
+    }
 
 
-    
+
 }
 
 
 // --- 8. INICIALIZAÇÃO ---
-document.addEventListener("DOMContentLoaded", function(){
+document.addEventListener("DOMContentLoaded", function () {
     carregar_config();
     atualizar_carrinho();
 
-    const modais = ['modalProduto', 'modalCarrito', 'modalCheckout', 'modalLogin', 'modalUsuario'];
+    const modais = [
+        'modalProduto',
+        'modalCarrito',
+        'modalCheckout',
+        'modalLogin',
+        'modalUsuario',
+        'modalIdentificacao',
+        'modalConfirmacaoPedido'
+    ];
+
     const btnFloat = document.getElementById('btn_carrinho_flutuante');
 
     modais.forEach(id => {
         var el = document.getElementById(id);
-        if(el) {
-            el.addEventListener('show.bs.modal', () => { if(btnFloat) btnFloat.style.display = 'none'; });
-            el.addEventListener('hidden.bs.modal', () => { 
-                if(!document.querySelector('.modal.show') && btnFloat) btnFloat.style.display = 'block'; 
+        if (el) {
+            el.addEventListener('show.bs.modal', () => { if (btnFloat) btnFloat.style.display = 'none'; });
+            el.addEventListener('hidden.bs.modal', () => {
+                if (!document.querySelector('.modal.show') && btnFloat) btnFloat.style.display = 'block';
             });
         }
     });
@@ -803,7 +855,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
 // Monitora se o usuário está tentando mudar o CEP no meio do caminho
-$(document).on('change', '#carrinho_cep', function() {
+$(document).on('change', '#carrinho_cep', function () {
     // Se mudar o CEP, reseta o frete selecionado para forçar novo cálculo
     freteCalculado = 0;
     freteSelecionadoNome = "";
@@ -831,19 +883,23 @@ function validarCepsIdenticos() {
 function corrigirCepDivergente() {
     var novoCep = document.getElementById('checkout_cep').value;
     document.getElementById('carrinho_cep').value = novoCep;
-    
+
     // Simula o clique de cálculo no carrinho (isso já está pronto no seu código)
     calcularFreteCarrinho();
-    
+
     // Aguarda um pouco o cálculo e libera
     setTimeout(() => {
         validarCepsIdenticos();
-        alert("Frete atualizado com sucesso para o novo CEP!");
-    }, 1500);
+        const box = document.getElementById("erro_cep_divergente");
+        if (box) {
+            box.style.display = "none"; // se CEPs ficaram iguais
+        }
+    }, 800);
+
 }
 
 // 4. Vigiar mudanças no campo de CEP do Checkout em tempo real
-$(document).on('change', '#checkout_cep', function() {
+$(document).on('change', '#checkout_cep', function () {
     validarCepsIdenticos();
 });
 
@@ -851,17 +907,17 @@ $(document).on('change', '#checkout_cep', function() {
 // --- NOVO FLUXO DE IDENTIFICAÇÃO ---
 
 function abrirIdentificacao() {
-  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCarrito')).hide();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCarrito')).hide();
 
-  // reset básico
-  $('#cpf_identificacao').val('');
-  $('#resultado_busca_identidade').hide();
-  $('#btn_buscar_identidade_div').show();
+    // reset básico
+    $('#cpf_identificacao').val('');
+    $('#resultado_busca_identidade').hide();
+    $('#btn_buscar_identidade_div').show();
 
-  // LGPD controla botão
-  $('#check_lgpd').prop('checked', false).trigger('change');
+    // LGPD controla botão
+    $('#check_lgpd').prop('checked', false).trigger('change');
 
-  new bootstrap.Modal(document.getElementById('modalIdentificacao')).show();
+    new bootstrap.Modal(document.getElementById('modalIdentificacao')).show();
 }
 
 
@@ -873,12 +929,12 @@ function irParaCheckoutManual(cpfInformado) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalIdentificacao')).hide();
     document.getElementById('form-checkout').reset(); // Limpa tudo
 
-        // ✅ IMPORTANTE: limpa nome/sobrenome anteriores
-            dadosClienteTemp = {};
+    // ✅ IMPORTANTE: limpa nome/sobrenome anteriores
+    dadosClienteTemp = {};
 
-    
+
     document.getElementById('checkout_cpf').value = cpfInformado || document.getElementById('cpf_identificacao').value;
-    
+
     // Deixa os campos vazios para o novo cadastro
     new bootstrap.Modal(document.getElementById('modalCheckout')).show();
 }
@@ -887,7 +943,7 @@ function irParaCheckoutManual(cpfInformado) {
 // --- AJUSTES DE FLUXO E LIMPEZA ---
 
 // 1. Limpa a busca se o usuário apagar o CPF
-$(document).on('input', '#cpf_identificacao', function() {
+$(document).on('input', '#cpf_identificacao', function () {
     var valor = $(this).val().replace(/\D/g, '');
     if (valor.length < 11) {
         $("#resultado_busca_identidade").slideUp();
@@ -898,47 +954,47 @@ $(document).on('input', '#cpf_identificacao', function() {
 
 // 2. Bloqueio por LGPD e Busca de CEP no Checkout
 function buscarIdentidade() {
-  if (!document.getElementById('check_lgpd').checked) {
-    alert("Para continuar, você precisa autorizar o uso dos dados conforme a LGPD.");
-    return;
-  }
+    if (!document.getElementById('check_lgpd').checked) {
+        alert("Para continuar, você precisa autorizar o uso dos dados conforme a LGPD.");
+        return;
+    }
 
-  var cpf = document.getElementById('cpf_identificacao').value.replace(/\D/g, '');
-  if (cpf.length !== 11) { 
-    alert("Informe um CPF válido"); 
-    return; 
-  }
+    var cpf = document.getElementById('cpf_identificacao').value.replace(/\D/g, '');
+    if (cpf.length !== 11) {
+        alert("Informe um CPF válido");
+        return;
+    }
 
-  var btn = document.querySelector('#btn_buscar_identidade_div button');
-  btn.innerText = "Consultando...";
-  btn.disabled = true;
+    var btn = document.querySelector('#btn_buscar_identidade_div button');
+    btn.innerText = "Consultando...";
+    btn.disabled = true;
 
-  fetch(CONFIG.SCRIPT_URL, {
-    method: 'POST',
-    body: JSON.stringify({ op: "buscar_cliente", cpf: cpf })
-  })
-  .then(r => r.json())
-  .then(dados => {
-    btn.innerText = "Buscar CPF";
-    btn.disabled = false;
+    fetch(CONFIG.SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ op: "buscar_cliente", cpf: cpf })
+    })
+        .then(r => r.json())
+        .then(dados => {
+            btn.innerText = "Buscar CPF";
+            btn.disabled = false;
 
-    if (dados && dados.encontrado) {
-      enderecoEntregaTemp = dados;
-        
-        dadosClienteTemp.nome = String(dados.nome ?? "").trim();
-        dadosClienteTemp.sobrenome = String(dados.sobrenome ?? "").trim();
+            if (dados && dados.encontrado) {
+                enderecoEntregaTemp = dados;
 
-        
-        const tel    = String(dados.telefone ?? "").trim();
-        const comp   = String(dados.complemento ?? "").trim();
-        const bairro = String(dados.bairro ?? "").trim();
-        const cidade = String(dados.cidade ?? "").trim();
-        const uf     = String(dados.uf ?? "").trim();
+                dadosClienteTemp.nome = String(dados.nome ?? "").trim();
+                dadosClienteTemp.sobrenome = String(dados.sobrenome ?? "").trim();
 
 
+                const tel = String(dados.telefone ?? "").trim();
+                const comp = String(dados.complemento ?? "").trim();
+                const bairro = String(dados.bairro ?? "").trim();
+                const cidade = String(dados.cidade ?? "").trim();
+                const uf = String(dados.uf ?? "").trim();
 
 
-      document.getElementById('resumo_dados_cliente').innerHTML = `
+
+
+                document.getElementById('resumo_dados_cliente').innerHTML = `
         <div class="small">
           <div class="fw-bold mb-1">${dadosClienteTemp.nome} ${dadosClienteTemp.sobrenome}</div>
           <div>${dados.rua || ''}, ${dados.numero || ''}${comp ? ` - ${comp}` : ''}</div>
@@ -950,18 +1006,18 @@ function buscarIdentidade() {
         </div>
       `;
 
-      $("#resultado_busca_identidade").slideDown();
-      $("#btn_buscar_identidade_div").hide();
-    } else {
-      irParaCheckoutManual(cpf);
-    }
-  })
-  .catch(err => {
-    console.error("Erro buscar_cliente:", err);
-    btn.innerText = "Buscar CPF";
-    btn.disabled = false;
-    alert("Erro ao consultar. Veja o Console (F12) para detalhes.");
-  });
+                $("#resultado_busca_identidade").slideDown();
+                $("#btn_buscar_identidade_div").hide();
+            } else {
+                irParaCheckoutManual(cpf);
+            }
+        })
+        .catch(err => {
+            console.error("Erro buscar_cliente:", err);
+            btn.innerText = "Buscar CPF";
+            btn.disabled = false;
+            alert("Erro ao consultar. Veja o Console (F12) para detalhes.");
+        });
 }
 
 
@@ -969,59 +1025,59 @@ function buscarIdentidade() {
 function buscarCepNoCheckout() {
     var cep = document.getElementById('checkout_cep').value.replace(/\D/g, '');
     if (cep.length !== 8) { alert("CEP Inválido"); return; }
-    
+
     fetch(`https://viacep.com.br/ws/${cep}/json/`)
-    .then(r => r.json())
-    .then(d => {
-        if (!d.erro) {
-            document.getElementById('checkout_rua').value = d.logradouro;
-            document.getElementById('checkout_bairro').value = d.bairro;
-            document.getElementById('checkout_cidade').value = d.localidade;
-            document.getElementById('checkout_uf').value = d.uf;
-            enderecoEntregaTemp.cep = cep; // Atualiza para validação de frete
-            validarCepsIdenticos();
-        } else {
-            alert("CEP não encontrado.");
-        }
-    });
+        .then(r => r.json())
+        .then(d => {
+            if (!d.erro) {
+                document.getElementById('checkout_rua').value = d.logradouro;
+                document.getElementById('checkout_bairro').value = d.bairro;
+                document.getElementById('checkout_cidade').value = d.localidade;
+                document.getElementById('checkout_uf').value = d.uf;
+                enderecoEntregaTemp.cep = cep; // Atualiza para validação de frete
+                validarCepsIdenticos();
+            } else {
+                alert("CEP não encontrado.");
+            }
+        });
 }
 
 // 4. Ajuste na função de confirmar para preencher o novo campo de CEP
 function confirmarDadosExistentes(modo) {
-  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalIdentificacao')).hide();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalIdentificacao')).hide();
 
-  document.getElementById('checkout_cpf').value = document.getElementById('cpf_identificacao').value;
+    document.getElementById('checkout_cpf').value = document.getElementById('cpf_identificacao').value;
 
-  // nome/sobrenome
-  document.getElementById('checkout_nome').value = dadosClienteTemp.nome || "";
-  document.getElementById('checkout_sobrenome').value = dadosClienteTemp.sobrenome || "";
+    // nome/sobrenome
+    document.getElementById('checkout_nome').value = dadosClienteTemp.nome || "";
+    document.getElementById('checkout_sobrenome').value = dadosClienteTemp.sobrenome || "";
 
-  // endereço
-  document.getElementById('checkout_cep').value = enderecoEntregaTemp.cep || "";
-  document.getElementById('checkout_telefone').value = enderecoEntregaTemp.telefone || "";
-  document.getElementById('checkout_rua').value = enderecoEntregaTemp.rua || "";
-  document.getElementById('checkout_numero').value = enderecoEntregaTemp.numero || "";
-  document.getElementById('checkout_bairro').value = enderecoEntregaTemp.bairro || "";
-  document.getElementById('checkout_cidade').value = enderecoEntregaTemp.cidade || "";
-  document.getElementById('checkout_uf').value = enderecoEntregaTemp.uf || "";
-  document.getElementById('checkout_complemento').value = enderecoEntregaTemp.complemento || "";
-  const refEl = document.getElementById('checkout_referencia');
+    // endereço
+    document.getElementById('checkout_cep').value = enderecoEntregaTemp.cep || "";
+    document.getElementById('checkout_telefone').value = enderecoEntregaTemp.telefone || "";
+    document.getElementById('checkout_rua').value = enderecoEntregaTemp.rua || "";
+    document.getElementById('checkout_numero').value = enderecoEntregaTemp.numero || "";
+    document.getElementById('checkout_bairro').value = enderecoEntregaTemp.bairro || "";
+    document.getElementById('checkout_cidade').value = enderecoEntregaTemp.cidade || "";
+    document.getElementById('checkout_uf').value = enderecoEntregaTemp.uf || "";
+    document.getElementById('checkout_complemento').value = enderecoEntregaTemp.complemento || "";
+    const refEl = document.getElementById('checkout_referencia');
     if (refEl) refEl.value = "";
 
 
-  // Se o modo for "usar", você pode deixar como está e só seguir.
-  // Se for "editar", foca no primeiro campo editável pra incentivar atualização.
-  new bootstrap.Modal(document.getElementById('modalCheckout')).show();
-  validarCepsIdenticos();
+    // Se o modo for "usar", você pode deixar como está e só seguir.
+    // Se for "editar", foca no primeiro campo editável pra incentivar atualização.
+    new bootstrap.Modal(document.getElementById('modalCheckout')).show();
+    validarCepsIdenticos();
 
-  if (modo === 'editar') {
-    setTimeout(() => document.getElementById('checkout_telefone').focus(), 400);
-  }
+    if (modo === 'editar') {
+        setTimeout(() => document.getElementById('checkout_telefone').focus(), 400);
+    }
 }
 
 
 // 5. Corrigir o problema do botão de carrinho sumindo
-$(document).ready(function() {
+$(document).ready(function () {
     // Garante que o botão flutuante reapareça ao fechar qualquer modal se houver itens
     $('.modal').on('hidden.bs.modal', function () {
         var c = JSON.parse(localStorage.getItem('carrinho')) || [];
@@ -1031,9 +1087,9 @@ $(document).ready(function() {
     });
 });
 
-$(document).on('change', '#check_lgpd', function() {
-  const ok = this.checked;
-  $('#btn_buscar_identidade_div button').prop('disabled', !ok);
+$(document).on('change', '#check_lgpd', function () {
+    const ok = this.checked;
+    $('#btn_buscar_identidade_div button').prop('disabled', !ok);
 });
 
 
@@ -1056,78 +1112,78 @@ function validarCepCheckoutComFrete() {
 
 
 function formatBRL(v) {
-  const n = Number(v) || 0;
-  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const n = Number(v) || 0;
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function abrirConfirmacaoPedido(cliente, items, logisticaInfo) {
-  // Preenche o modal (você precisa ter os IDs do modalConfirmacaoPedido)
-  const carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
-  const subtotal = carrinho.reduce((acc, i) => acc + ((Number(i.preco) || 0) * (Number(i.quantidade) || 1)), 0);
-  const frete = Number(freteCalculado) || 0;
-  const total = subtotal + frete;
+    // Preenche o modal (você precisa ter os IDs do modalConfirmacaoPedido)
+    const carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
+    const subtotal = carrinho.reduce((acc, i) => acc + ((Number(i.preco) || 0) * (Number(i.quantidade) || 1)), 0);
+    const frete = Number(freteCalculado) || 0;
+    const total = subtotal + frete;
 
-  const destEl = document.getElementById('conf_destinatario');
-  const endEl  = document.getElementById('conf_endereco');
-  const itensEl= document.getElementById('conf_itens');
-  const subEl  = document.getElementById('conf_subtotal');
-  const freEl  = document.getElementById('conf_frete');
-  const totEl  = document.getElementById('conf_total');
+    const destEl = document.getElementById('conf_destinatario');
+    const endEl = document.getElementById('conf_endereco');
+    const itensEl = document.getElementById('conf_itens');
+    const subEl = document.getElementById('conf_subtotal');
+    const freEl = document.getElementById('conf_frete');
+    const totEl = document.getElementById('conf_total');
 
-  if (destEl) destEl.innerText = `${cliente.nome} ${cliente.sobrenome} • CPF: ${cliente.cpf}`;
+    if (destEl) destEl.innerText = `${cliente.nome} ${cliente.sobrenome} • CPF: ${cliente.cpf}`;
 
-  const linha1 = `${cliente.rua}, ${cliente.numero}${cliente.complemento ? " - " + cliente.complemento : ""}`;
-  const linha2 = `${cliente.bairro} - ${cliente.cidade}/${cliente.uf} • CEP: ${cliente.cep}`;
-  if (endEl) endEl.innerText = `${linha1}\n${linha2}`;
+    const linha1 = `${cliente.rua}, ${cliente.numero}${cliente.complemento ? " - " + cliente.complemento : ""}`;
+    const linha2 = `${cliente.bairro} - ${cliente.cidade}/${cliente.uf} • CEP: ${cliente.cep}`;
+    if (endEl) endEl.innerText = `${linha1}\n${linha2}`;
 
-  const itensSomenteProdutos = items.filter(it => !(String(it.title || "").toLowerCase().includes("frete")));
-  const htmlItens = itensSomenteProdutos
-    .map(it => `• ${it.title} — ${it.quantity}x ${formatBRL(it.unit_price)}`)
-    .join("<br>");
-  if (itensEl) itensEl.innerHTML = htmlItens || "<span class='text-muted'>Nenhum item</span>";
+    const itensSomenteProdutos = items.filter(it => !(String(it.title || "").toLowerCase().includes("frete")));
+    const htmlItens = itensSomenteProdutos
+        .map(it => `• ${it.title} — ${it.quantity}x ${formatBRL(it.unit_price)}`)
+        .join("<br>");
+    if (itensEl) itensEl.innerHTML = htmlItens || "<span class='text-muted'>Nenhum item</span>";
 
-  if (subEl) subEl.innerText = formatBRL(subtotal);
-  if (freEl) freEl.innerText = frete > 0 ? `${formatBRL(frete)} (${freteSelecionadoNome || "Frete"})` : formatBRL(0);
-  if (totEl) totEl.innerText = formatBRL(total);
+    if (subEl) subEl.innerText = formatBRL(subtotal);
+    if (freEl) freEl.innerText = frete > 0 ? `${formatBRL(frete)} (${freteSelecionadoNome || "Frete"})` : formatBRL(0);
+    if (totEl) totEl.innerText = formatBRL(total);
 
-  // configura o botão "Confirmar e ir para pagamento"
-  const btnConfirmar = document.getElementById('btn_confirmar_pagamento');
-  if (btnConfirmar) {
-    btnConfirmar.onclick = efetivarPagamentoFinal;
-  }
+    // configura o botão "Confirmar e ir para pagamento"
+    const btnConfirmar = document.getElementById('btn_confirmar_pagamento');
+    if (btnConfirmar) {
+        btnConfirmar.onclick = efetivarPagamentoFinal;
+    }
 
-  new bootstrap.Modal(document.getElementById('modalConfirmacaoPedido')).show();
+    new bootstrap.Modal(document.getElementById('modalConfirmacaoPedido')).show();
 }
 
 function efetivarPagamentoFinal() {
-  const pend = window.__pedidoPendente;
-  if (!pend) {
-    alert("Pedido pendente não encontrado. Tente novamente.");
-    return;
-  }
-
-  // fecha modal de confirmação
-  const inst = bootstrap.Modal.getInstance(document.getElementById('modalConfirmacaoPedido'));
-  if (inst) inst.hide();
-
-  const { cliente, items, logisticaInfo, btn } = pend;
-    if (btn) {
-  btn.innerText = "Processando...";
-  btn.disabled = true;
-}
-
-
-  fetch(CONFIG.SCRIPT_URL, {
-    method: 'POST',
-    body: JSON.stringify({ cliente, items, logistica: logisticaInfo })
-  })
-  .then(r => r.text())
-  .then(link => { window.location.href = link; })
-  .catch(e => {
-    alert("Erro ao processar.");
-    if (btn) {
-      btn.innerText = "Tentar Novamente";
-      btn.disabled = false;
+    const pend = window.__pedidoPendente;
+    if (!pend) {
+        alert("Pedido pendente não encontrado. Tente novamente.");
+        return;
     }
-  });
+
+    // fecha modal de confirmação
+    const inst = bootstrap.Modal.getInstance(document.getElementById('modalConfirmacaoPedido'));
+    if (inst) inst.hide();
+
+    const { cliente, items, logisticaInfo, btn } = pend;
+    if (btn) {
+        btn.innerText = "Processando...";
+        btn.disabled = true;
+    }
+
+
+    fetch(CONFIG.SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ cliente, items, logistica: logisticaInfo })
+    })
+        .then(r => r.text())
+        .then(link => { window.location.href = link; })
+        .catch(e => {
+            alert("Erro ao processar.");
+            if (btn) {
+                btn.innerText = "Tentar Novamente";
+                btn.disabled = false;
+            }
+        });
 }
