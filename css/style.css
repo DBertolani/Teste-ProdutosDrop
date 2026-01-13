@@ -51,3 +51,9 @@ body {
     height: calc(100vh - 1rem);
   }
 }
+
+
+/* Esconde o alerta do carrinho quando estiver vazio */
+#alert_carrinho:empty {
+  display: none !important;
+}
