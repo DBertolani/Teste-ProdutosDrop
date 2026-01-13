@@ -804,39 +804,7 @@ function abrirIdentificacao() {
     new bootstrap.Modal(document.getElementById('modalIdentificacao')).show();
 }
 
-function buscarIdentidade() {
-    var cpf = document.getElementById('cpf_identificacao').value.replace(/\D/g, '');
-    if (cpf.length !== 11) { alert("Informe um CPF válido"); return; }
-    
-    var btn = document.querySelector('#btn_buscar_identidade_div button');
-    btn.innerText = "Consultando...";
-    btn.disabled = true;
 
-    fetch(CONFIG.SCRIPT_URL, {
-        method: 'POST',
-        body: JSON.stringify({ op: "buscar_cliente", cpf: cpf })
-    })
-    .then(r => r.json())
-    .then(dados => {
-        btn.innerText = "Continuar";
-        btn.disabled = false;
-        
-        if (dados.encontrado) {
-            // Guarda temporariamente os dados encontrados
-            enderecoEntregaTemp = dados;
-            document.getElementById('resumo_dados_cliente').innerHTML = `
-                <strong>Destinatário:</strong> ${dados.nome} ${dados.sobrenome}<br>
-                <strong>Endereço:</strong> ${dados.rua}, ${dados.numero}<br>
-                <strong>Cidade/CEP:</strong> ${dados.cidade} - ${dados.cep}
-            `;
-            $("#resultado_busca_identidade").slideDown();
-            $("#btn_buscar_identidade_div").hide();
-        } else {
-            // Não achou? Vai para o cadastro manual direto
-            irParaCheckoutManual(cpf);
-        }
-    });
-}
 
 
 // 1. Abertura do Checkout Manual (Novo Destinatário)
