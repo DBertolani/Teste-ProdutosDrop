@@ -2,6 +2,8 @@
 
 // Variável global para guardar as configurações da planilha
 var CONFIG_LOJA = {};
+var dadosClienteTemp = {};
+
 
 // --- 0. MÁSCARA DE CEP ---
 function mascaraCep(t) {
@@ -644,6 +646,9 @@ $(document).on('blur', '#checkout_cpf', function() {
         .then(r => r.json())
         .then(dados => {
             if (dados.encontrado) {
+                dadosClienteTemp.nome = dados.nome || "";
+                dadosClienteTemp.sobrenome = dados.sobrenome || "";
+
                 enderecoEntregaTemp.cep = dados.cep; // <-- ADICIONADO AQUI para a segurança funcionar
                 // Exibe o aviso bonito em vez do confirm do navegador
                 $("#aviso_cpf_encontrado").fadeIn();
@@ -675,9 +680,11 @@ if (!validarCepCheckoutComFrete()) {
 }
     
     var cliente = {
+        nome: dadosClienteTemp.nome || document.getElementById('checkout_nome')?.value || "",
+        sobrenome: dadosClienteTemp.sobrenome || document.getElementById('checkout_sobrenome')?.value || "",
         cpf: document.getElementById('checkout_cpf').value,
         telefone: document.getElementById('checkout_telefone').value,
-        cep: document.getElementById('checkout_cep').value, 
+        cep: document.getElementById('checkout_cep').value,
         rua: document.getElementById('checkout_rua').value,
         numero: document.getElementById('checkout_numero').value,
         bairro: document.getElementById('checkout_bairro').value,
@@ -685,6 +692,7 @@ if (!validarCepCheckoutComFrete()) {
         uf: document.getElementById('checkout_uf').value,
         complemento: document.getElementById('checkout_complemento').value
     };
+
 
     if (!cliente.cpf || !cliente.rua || !cliente.numero) {
         alert("Preencha CPF, Rua e Número."); return;
