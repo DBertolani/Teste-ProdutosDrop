@@ -10,44 +10,44 @@ function S(v) {
 }
 
 function moneyToFloat(v) {
-  if (v === null || v === undefined) return 0;
+    if (v === null || v === undefined) return 0;
 
-  let s = String(v).trim();
-  if (!s) return 0;
+    let s = String(v).trim();
+    if (!s) return 0;
 
-  // remove espaços e "R$"
-  s = s.replace(/\s/g, "").replace(/^R\$\s*/i, "");
+    // remove espaços e "R$"
+    s = s.replace(/\s/g, "").replace(/^R\$\s*/i, "");
 
-  // mantém só dígitos, vírgula, ponto e sinal
-  s = s.replace(/[^\d.,-]/g, "");
+    // mantém só dígitos, vírgula, ponto e sinal
+    s = s.replace(/[^\d.,-]/g, "");
 
-  const hasComma = s.includes(",");
-  const hasDot = s.includes(".");
+    const hasComma = s.includes(",");
+    const hasDot = s.includes(".");
 
-  if (hasComma && hasDot) {
-    // Decide o separador decimal pelo ÚLTIMO que aparece
-    if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
-      // 1.234,56 -> 1234.56
-      s = s.replace(/\./g, "").replace(",", ".");
-    } else {
-      // 1,234.56 -> 1234.56
-      s = s.replace(/,/g, "");
+    if (hasComma && hasDot) {
+        // Decide o separador decimal pelo ÚLTIMO que aparece
+        if (s.lastIndexOf(",") > s.lastIndexOf(".")) {
+            // 1.234,56 -> 1234.56
+            s = s.replace(/\./g, "").replace(",", ".");
+        } else {
+            // 1,234.56 -> 1234.56
+            s = s.replace(/,/g, "");
+        }
+    } else if (hasComma && !hasDot) {
+        // 32,44 -> 32.44
+        s = s.replace(",", ".");
+    } else if (hasDot) {
+        // Se tiver mais de um ponto, trata os anteriores como milhar
+        // 1.234.56 -> 1234.56
+        const parts = s.split(".");
+        if (parts.length > 2) {
+            const dec = parts.pop();
+            s = parts.join("") + "." + dec;
+        }
     }
-  } else if (hasComma && !hasDot) {
-    // 32,44 -> 32.44
-    s = s.replace(",", ".");
-  } else if (hasDot) {
-    // Se tiver mais de um ponto, trata os anteriores como milhar
-    // 1.234.56 -> 1234.56
-    const parts = s.split(".");
-    if (parts.length > 2) {
-      const dec = parts.pop();
-      s = parts.join("") + "." + dec;
-    }
-  }
 
-  const n = parseFloat(s);
-  return Number.isFinite(n) ? n : 0;
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : 0;
 }
 
 
@@ -246,6 +246,12 @@ function abrir_modal_ver(id) {
     if (!produtoAtual) return;
 
     variacaoSelecionada = null;
+    const alertVar = document.getElementById('alertVariacao');
+    if (alertVar) alertVar.classList.add('d-none');
+    const lista = document.getElementById('listaVariacoes');
+    if (lista) lista.classList.remove('border', 'border-warning', 'rounded', 'p-2');
+
+
     document.getElementById('modalTituloProduto').innerText = produtoAtual.Produto;
     document.getElementById('modalPreco').innerText = 'R$ ' + parseFloat(produtoAtual.Preço).toFixed(2);
     document.getElementById('modalDescricaoTexto').innerText = produtoAtual.Descrição || "";
@@ -292,10 +298,28 @@ function abrir_modal_ver(id) {
     }
 
     document.getElementById('btnAdicionarModal').onclick = function () {
+        // NOVO: aviso bonito dentro do modal (sem alert)
+        const alertVar = document.getElementById('alertVariacao');
+
         if (!variacaoSelecionada) {
-            alert("Por favor, selecione uma opção (Tamanho/Variação).");
+            if (alertVar) {
+                alertVar.classList.remove('d-none');
+
+                // opcional: rolar até o aviso (ajuda no mobile)
+                alertVar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+                // opcional: destacar as opções
+                const lista = document.getElementById('listaVariacoes');
+                if (lista) lista.classList.add('border', 'border-warning', 'rounded', 'p-2');
+            }
             return;
         }
+
+        // se selecionou, esconde aviso e remove destaque
+        if (alertVar) alertVar.classList.add('d-none');
+        const lista = document.getElementById('listaVariacoes');
+        if (lista) lista.classList.remove('border', 'border-warning', 'rounded', 'p-2');
+
         var nomeFinal = produtoAtual.Produto;
         var freteGratisUF = produtoAtual.FreteGratis || "";
 
@@ -307,8 +331,10 @@ function abrir_modal_ver(id) {
             freteGratisUF,
             variacaoSelecionada
         );
+
         bootstrap.Modal.getInstance(document.getElementById('modalProduto')).hide();
     };
+
 
     // Reseta simulador individual
     document.getElementById('resultadoFreteIndividual').innerHTML = "";
@@ -360,37 +386,56 @@ function simular_frete_produto_individual(produto) {
                 return;
             }
 
-            fetch(`https://viacep.com.br/ws/${cep}/json/`)
-                .then(rv => rv.json())
-                .then(cepData => {
-                    var ufDestino = cepData.uf || "";
-                    var html = '<ul class="list-unstyled mt-2">';
-                    var ehGratis = produto.FreteGratis && produto.FreteGratis.includes(ufDestino);
+fetch(`https://viacep.com.br/ws/${cep}/json/`)
+  .then(rv => rv.json())
+  .then(cepData => {
 
-                    data.opcoes.forEach(op => {
-                        var valor = moneyToFloat(op.valor);
-                        var nome = op.nome.toUpperCase();
-                        var isPac = nome.includes("PAC");
-                        var displayVal = valor;
-                        var tag = "";
+    // ✅ NOVO: trata CEP inválido e pega cidade/UF
+    if (cepData.erro) {
+      res.innerHTML = `<span class="text-danger">CEP não encontrado.</span>`;
+      return;
+    }
 
-                        if (ehGratis) {
-                            if (isPac) {
-                                displayVal = 0;
-                                tag = '<span class="badge bg-success">Grátis</span>';
-                            } else {
-                                displayVal = Math.max(0, valor - subsidio);
-                                tag = '<span class="badge bg-info text-dark">Desconto</span>';
-                            }
-                        } else {
-                            displayVal = Math.max(0, valor - subsidio);
-                            if (subsidio > 0) tag = '<span class="badge bg-info text-dark">Desconto</span>';
-                        }
-                        html += `<li><strong>${op.nome}</strong>: R$ ${displayVal.toFixed(2)} <small class="text-muted">(${op.prazo}d)</small> ${tag}</li>`;
-                    });
-                    html += '</ul>';
-                    res.innerHTML = html;
-                });
+    var ufDestino = cepData.uf || "";
+    var cidade = cepData.localidade || "";
+
+    // ✅ NOVO: mostra destino antes da lista
+    var cabecalhoDestino = (cidade || ufDestino)
+      ? `<div class="mb-1"><strong>Destino:</strong> ${cidade}${cidade && ufDestino ? "/" : ""}${ufDestino}</div>`
+      : "";
+
+    // ✅ ALTERADO: antes era só "<ul..."
+    var html = cabecalhoDestino + '<ul class="list-unstyled mt-2">';
+
+    var ehGratis = produto.FreteGratis && produto.FreteGratis.includes(ufDestino);
+
+    data.opcoes.forEach(op => {
+      var valor = moneyToFloat(op.valor);
+      var nome = op.nome.toUpperCase();
+      var isPac = nome.includes("PAC");
+      var displayVal = valor;
+      var tag = "";
+
+      if (ehGratis) {
+        if (isPac) {
+          displayVal = 0;
+          tag = '<span class="badge bg-success">Grátis</span>';
+        } else {
+          displayVal = Math.max(0, valor - subsidio);
+          tag = '<span class="badge bg-info text-dark">Desconto</span>';
+        }
+      } else {
+        displayVal = Math.max(0, valor - subsidio);
+        if (subsidio > 0) tag = '<span class="badge bg-info text-dark">Desconto</span>';
+      }
+
+      html += `<li><strong>${op.nome}</strong>: R$ ${displayVal.toFixed(2)} <small class="text-muted">(${op.prazo}d)</small> ${tag}</li>`;
+    });
+
+    html += '</ul>';
+    res.innerHTML = html;
+  });
+
         })
         .catch(e => {
             console.error(e);
