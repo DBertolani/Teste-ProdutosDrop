@@ -1,0 +1,20 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Corrigir Drive e Sincronizar",
+            "type": "shell",
+            "command": "if (Test-Path .git/refs/remotes/desktop.ini) { del -Force .git/refs/remotes/desktop.ini }; if (Test-Path .git/refs/remotes/origin/desktop.ini) { del -Force .git/refs/remotes/origin/desktop.ini }; git pull origin main",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
