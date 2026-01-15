@@ -1,5 +1,6 @@
 // js/app.js - Versão com Frete Real (Soma Pesos), Edição e Máscara CEP
 
+
 // Variável global para guardar as configurações da planilha
 var CONFIG_LOJA = {};
 var dadosClienteTemp = {};
