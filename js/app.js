@@ -225,8 +225,8 @@ function extrairAtributosDeProduto(p) {
 }
 
 function renderizarFiltrosAtributos(produtos) {
-    const host = document.getElementById("filtros_atributos");
-    if (!host) return;
+    const hostDesk = document.getElementById("filtros_atributos");
+    const hostMob = document.getElementById("filtros_atributos_mobile");
 
     const todos = new Set();
     (produtos || []).forEach(p => {
@@ -234,26 +234,28 @@ function renderizarFiltrosAtributos(produtos) {
     });
 
     const lista = Array.from(todos).sort();
-    if (lista.length === 0) {
-        host.innerHTML = "";
-        return;
-    }
 
-    host.innerHTML = `
-    <div class="d-flex flex-wrap gap-2 align-items-center">
-      <span class="small text-muted me-2">Filtrar:</span>
-      ${lista.map(a => {
+    const html = (lista.length === 0) ? "" : `
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <span class="small text-muted me-2">Filtrar:</span>
+        ${lista.map(a => {
         const id = "attr_" + a.replace(/\W+/g, "_");
         const ativo = FILTROS_ATRIB.has(a) ? "checked" : "";
         return `
-          <input type="checkbox" class="btn-check" id="${id}" ${ativo} onchange="toggleAtributoFiltro('${a}')">
-          <label class="btn btn-outline-secondary btn-sm" for="${id}">${a}</label>
-        `;
+              <input type="checkbox" class="btn-check" id="${id}" ${ativo} onchange="toggleAtributoFiltro('${a}'); atualizarBadgeFiltros();">
+              <label class="btn btn-outline-secondary btn-sm" for="${id}">${a}</label>
+            `;
     }).join("")}
-      <button class="btn btn-outline-secondary btn-sm ms-2" onclick="limparFiltrosAtributos()">Limpar</button>
-    </div>
-  `;
+        <button class="btn btn-outline-secondary btn-sm ms-2" onclick="limparFiltrosAtributos(); atualizarBadgeFiltros();">Limpar</button>
+      </div>
+    `;
+
+    if (hostDesk) hostDesk.innerHTML = html;
+    if (hostMob) hostMob.innerHTML = html;
+
+    atualizarBadgeFiltros();
 }
+
 
 function toggleAtributoFiltro(a) {
     if (FILTROS_ATRIB.has(a)) FILTROS_ATRIB.delete(a);
@@ -266,6 +268,16 @@ function limparFiltrosAtributos() {
     renderizarFiltrosAtributos(ALL_PRODUTOS);
     filtrarProdutos();
 }
+
+function atualizarBadgeFiltros() {
+    const badge = document.getElementById("badgeFiltros");
+    if (!badge) return;
+
+    const n = FILTROS_ATRIB.size || 0;
+    badge.classList.toggle("d-none", n === 0);
+    badge.innerText = String(n);
+}
+
 
 
 // --- 3. PRODUTOS E LOADING ---
@@ -393,6 +405,61 @@ function limpar_filtros() {
 var produtoAtual = null;
 var variacaoSelecionada = null;
 
+// ✅ Viewer (tela cheia) - estado
+var VIEWER_IMGS = [];
+var VIEWER_IDX = 0;
+
+function abrirViewerImagens(lista, idxInicial, titulo) {
+    VIEWER_IMGS = (lista || []).filter(s => String(s || "").trim().length > 4);
+    VIEWER_IDX = Math.max(0, Math.min(idxInicial || 0, VIEWER_IMGS.length - 1));
+
+    const t = document.getElementById('viewerTitulo');
+    if (t) t.innerText = titulo || "Imagem";
+
+    atualizarViewer();
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalImagemViewer')).show();
+}
+
+function atualizarViewer() {
+    const imgEl = document.getElementById('viewerImg');
+    const contEl = document.getElementById('viewerContador');
+
+    const total = VIEWER_IMGS.length;
+    const src = VIEWER_IMGS[VIEWER_IDX] || "";
+
+    if (imgEl) imgEl.src = src;
+    if (contEl) contEl.innerText = total ? `Imagem ${VIEWER_IDX + 1} de ${total}` : "";
+}
+
+function viewerPrev() {
+    if (!VIEWER_IMGS.length) return;
+    VIEWER_IDX = (VIEWER_IDX - 1 + VIEWER_IMGS.length) % VIEWER_IMGS.length;
+    atualizarViewer();
+}
+
+function viewerNext() {
+    if (!VIEWER_IMGS.length) return;
+    VIEWER_IDX = (VIEWER_IDX + 1) % VIEWER_IMGS.length;
+    atualizarViewer();
+}
+
+// ✅ resumo da descrição (primeira frase / fallback por tamanho)
+function obterResumoDescricao(texto, maxChars) {
+    const t = String(texto || "").trim();
+    if (!t) return "";
+
+    // tenta pegar até o primeiro ponto final
+    const ponto = t.indexOf(".");
+    let resumo = (ponto > 20) ? t.slice(0, ponto + 1) : t;
+
+    const lim = maxChars || 160;
+    if (resumo.length > lim) resumo = resumo.slice(0, lim).trim() + "…";
+
+    return resumo;
+}
+
+
 function abrir_modal_ver(id) {
     var dados = (ALL_PRODUTOS && ALL_PRODUTOS.length)
         ? ALL_PRODUTOS
@@ -414,21 +481,54 @@ function abrir_modal_ver(id) {
 
     document.getElementById('modalTituloProduto').innerText = produtoAtual.Produto;
     document.getElementById('modalPreco').innerText = 'R$ ' + parseFloat(produtoAtual.Preço).toFixed(2);
-    document.getElementById('modalDescricaoTexto').innerText = produtoAtual.Descrição || "";
+    const descCompleta = produtoAtual.Descrição || "";
+
+    const resumoEl = document.getElementById('modalDescricaoResumo');
+    const btnMais = document.getElementById('btnLerMaisDescricao');
+
+    if (resumoEl) resumoEl.innerText = obterResumoDescricao(descCompleta, 160);
+
+    const precisaMais = String(descCompleta || "").trim().length > (resumoEl?.innerText?.length || 0) + 5;
+    if (btnMais) btnMais.classList.toggle('d-none', !precisaMais);
+
+    // prepara modal de descrição completa
+    const tit = document.getElementById('modalDescricaoTitulo');
+    const full = document.getElementById('modalDescricaoCompletaTexto');
+
+    if (tit) tit.innerText = produtoAtual.Produto || "Descrição";
+    if (full) full.innerText = descCompleta;
+
 
     var containerImagens = document.getElementById('carouselImagensContainer');
     containerImagens.innerHTML = '';
-    var imgs = [produtoAtual.ImagemPrincipal];
-    if (produtoAtual.ImagensExtras) imgs = imgs.concat(produtoAtual.ImagensExtras.split(',').map(s => s.trim()));
 
-    imgs.forEach((src, i) => {
-        if (src.length > 4) {
-            var div = document.createElement('div');
-            div.className = i === 0 ? 'carousel-item active' : 'carousel-item';
-            div.innerHTML = `<img src="${src}" class="d-block w-100" style="height: 300px; object-fit: contain; background: #f8f9fa;">`;
-            containerImagens.appendChild(div);
-        }
+    var imgs = [produtoAtual.ImagemPrincipal];
+    if (produtoAtual.ImagensExtras) {
+        imgs = imgs.concat(produtoAtual.ImagensExtras.split(',').map(s => s.trim()));
+    }
+
+    // 1) monta lista final limpa
+    const imgsLimpa = imgs
+        .map(s => String(s || "").trim())
+        .filter(s => s.length > 4);
+
+    // 2) renderiza com a lista final (a mesma para todos)
+    imgsLimpa.forEach((src, idx) => {
+        var div = document.createElement('div');
+        div.className = (idx === 0) ? 'carousel-item active' : 'carousel-item';
+
+        div.innerHTML = `
+    <img
+      src="${src}"
+      class="d-block w-100"
+      style="height: 300px; object-fit: contain; background: #f8f9fa; cursor: zoom-in;"
+      onclick='abrirViewerImagens(${JSON.stringify(imgsLimpa)}, ${idx}, "Galeria")'
+    >
+  `;
+
+        containerImagens.appendChild(div);
     });
+
 
     var divVar = document.getElementById('areaVariacoes');
     var listaVar = document.getElementById('listaVariacoes');
@@ -453,6 +553,20 @@ function abrir_modal_ver(id) {
     if (produtoAtual.TamanhosImagens && produtoAtual.TamanhosImagens.trim() !== "") {
         divMedidas.style.display = 'block';
         document.getElementById('imgTabelaMedidas').src = produtoAtual.TamanhosImagens;
+        // ✅ Viewer da Tabela de Medidas
+        const btnTab = document.getElementById('btnTabelaMedidas');
+        const imgTab = document.getElementById('imgTabelaMedidas');
+
+        if (btnTab && produtoAtual.TamanhosImagens) {
+            // opcional: esconder preview inline
+            if (imgTab) imgTab.classList.add('d-none');
+
+            btnTab.onclick = function () {
+                abrirViewerImagens([produtoAtual.TamanhosImagens], 0, 'Tabela de Medidas');
+                return false;
+            };
+        }
+
     } else {
         divMedidas.style.display = 'none';
     }
@@ -1144,6 +1258,19 @@ document.addEventListener("DOMContentLoaded", function () {
                 e.preventDefault();
                 filtrarProdutos();
             }
+            // ✅ Quando abrir/fechar o offcanvas de filtros, esconde/mostra carrinho flutuante
+            const offEl = document.getElementById('offcanvasFiltros');
+            if (offEl) {
+                offEl.addEventListener('show.bs.offcanvas', () => {
+                    document.body.classList.add('filtros-abertos');
+                });
+
+                offEl.addEventListener('hidden.bs.offcanvas', () => {
+                    document.body.classList.remove('filtros-abertos');
+                });
+            }
+
+
         });
     }
 
