@@ -307,8 +307,13 @@ function abrir_modal_ver(id) {
     var dados = (ALL_PRODUTOS && ALL_PRODUTOS.length)
         ? ALL_PRODUTOS
         : (JSON.parse(localStorage.getItem('calçados')) || []);
-    produtoAtual = dados.find(p => p.ID === id);
-    if (!produtoAtual) return;
+    produtoAtual = dados.find(p => String(p.ID) === String(id));
+    if (!produtoAtual) {
+        console.warn("Produto não encontrado para ID:", id, "IDs disponíveis:", dados.slice(0, 10).map(p => p.ID));
+        return;
+    }
+
+
 
     variacaoSelecionada = null;
     const alertVar = document.getElementById('alertVariacao');
