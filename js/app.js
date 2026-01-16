@@ -63,28 +63,56 @@ function normalizarTexto(s) {
 }
 
 function filtrarProdutos() {
-    const input = document.getElementById('txt_search');
-    const termo = normalizarTexto(input?.value || "");
+    const termo = normalizarTexto(obterTermoBusca());
 
     if (!Array.isArray(ALL_PRODUTOS) || ALL_PRODUTOS.length === 0) {
         ALL_PRODUTOS = JSON.parse(localStorage.getItem('calçados')) || [];
-    }
-
-
-    if (!termo) {
-        mostrar_produtos(ALL_PRODUTOS);
-        return;
     }
 
     const filtrados = ALL_PRODUTOS.filter(p => {
         const nome = normalizarTexto(p.Produto);
         const cat = normalizarTexto(p.Categoria);
         const desc = normalizarTexto(p.Descrição);
-        return nome.includes(termo) || cat.includes(termo) || desc.includes(termo);
+
+        // ✅ filtro por atributos (se tiver algum marcado)
+        const attrs = extrairAtributosDeProduto(p);
+        const passaAtributos =
+            (FILTROS_ATRIB.size === 0) ||
+            Array.from(FILTROS_ATRIB).every(f => attrs.includes(f));
+
+        // ✅ filtro por texto (se termo estiver vazio, passa)
+        const passaTexto =
+            !termo || nome.includes(termo) || cat.includes(termo) || desc.includes(termo);
+
+        return passaAtributos && passaTexto;
     });
 
     mostrar_produtos(filtrados);
 }
+
+
+function obterTermoBusca() {
+    const desk = document.getElementById('txt_search')?.value || "";
+    const mob = document.getElementById('txt_search_mobile')?.value || "";
+    // prioridade: se o mobile estiver visível e preenchido, usa ele
+    return (mob.trim() ? mob : desk);
+}
+
+function sincronizarBuscaEntreCampos() {
+    const deskEl = document.getElementById('txt_search');
+    const mobEl = document.getElementById('txt_search_mobile');
+    if (!deskEl || !mobEl) return;
+
+    // quando digitar em um, reflete no outro
+    deskEl.addEventListener('input', () => {
+        if (mobEl.value !== deskEl.value) mobEl.value = deskEl.value;
+    });
+    mobEl.addEventListener('input', () => {
+        if (deskEl.value !== mobEl.value) deskEl.value = mobEl.value;
+    });
+
+}
+
 
 
 // --- 0. MÁSCARA DE CEP ---
@@ -188,6 +216,58 @@ function fechar_menu_mobile() {
     }
 }
 
+var FILTROS_ATRIB = new Set();
+
+function extrairAtributosDeProduto(p) {
+    const raw = String(p?.Atributos || "").trim();
+    if (!raw) return [];
+    return raw.split(",").map(s => normalizarTexto(s)).filter(Boolean);
+}
+
+function renderizarFiltrosAtributos(produtos) {
+    const host = document.getElementById("filtros_atributos");
+    if (!host) return;
+
+    const todos = new Set();
+    (produtos || []).forEach(p => {
+        extrairAtributosDeProduto(p).forEach(a => todos.add(a));
+    });
+
+    const lista = Array.from(todos).sort();
+    if (lista.length === 0) {
+        host.innerHTML = "";
+        return;
+    }
+
+    host.innerHTML = `
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <span class="small text-muted me-2">Filtrar:</span>
+      ${lista.map(a => {
+        const id = "attr_" + a.replace(/\W+/g, "_");
+        const ativo = FILTROS_ATRIB.has(a) ? "checked" : "";
+        return `
+          <input type="checkbox" class="btn-check" id="${id}" ${ativo} onchange="toggleAtributoFiltro('${a}')">
+          <label class="btn btn-outline-secondary btn-sm" for="${id}">${a}</label>
+        `;
+    }).join("")}
+      <button class="btn btn-outline-secondary btn-sm ms-2" onclick="limparFiltrosAtributos()">Limpar</button>
+    </div>
+  `;
+}
+
+function toggleAtributoFiltro(a) {
+    if (FILTROS_ATRIB.has(a)) FILTROS_ATRIB.delete(a);
+    else FILTROS_ATRIB.add(a);
+    filtrarProdutos(); // reaproveita sua busca + lista atual
+}
+
+function limparFiltrosAtributos() {
+    FILTROS_ATRIB.clear();
+    renderizarFiltrosAtributos(ALL_PRODUTOS);
+    filtrarProdutos();
+}
+
+
 // --- 3. PRODUTOS E LOADING ---
 function carregar_produtos() {
     const cache = JSON.parse(localStorage.getItem('calçados')) || [];
@@ -195,6 +275,7 @@ function carregar_produtos() {
         // mostra cache imediatamente
         ALL_PRODUTOS = cache;
         carregar_categorias(cache);
+        renderizarFiltrosAtributos(cache);
         mostrar_produtos(cache);
         mostrar_skeleton(false);
     } else {
@@ -211,6 +292,7 @@ function carregar_produtos() {
                 localStorage.setItem("calçados", JSON.stringify(data));
                 ALL_PRODUTOS = data;
                 carregar_categorias(data);
+                renderizarFiltrosAtributos(data);
                 mostrar_produtos(data);
             }
         })
@@ -290,13 +372,21 @@ function mostrar_produtos(produtos) {
 
 
 function limpar_filtros() {
-    document.getElementById('txt_search').value = "";
-    // volta para lista completa já carregada
+    const desk = document.getElementById('txt_search');
+    const mob = document.getElementById('txt_search_mobile');
+
+    if (desk) desk.value = "";
+    if (mob) mob.value = "";
+
+    FILTROS_ATRIB.clear();
+    renderizarFiltrosAtributos(ALL_PRODUTOS);
+
     if (!ALL_PRODUTOS || !ALL_PRODUTOS.length) {
         ALL_PRODUTOS = JSON.parse(localStorage.getItem('calçados')) || [];
     }
     mostrar_produtos(ALL_PRODUTOS);
 }
+
 
 
 // --- 4. MODAL DO PRODUTO (Ver + Simular Frete Individual) ---
@@ -1046,6 +1136,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const busca = document.getElementById('txt_search');
     if (busca) {
         busca.addEventListener('input', filtrarProdutos);
+
+        busca.addEventListener('search', () => filtrarProdutos()); // ✅ ADICIONAR
+
         busca.addEventListener('keydown', (e) => {
             if (e.key === "Enter") {
                 e.preventDefault();
@@ -1053,6 +1146,49 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     }
+
+
+    // ✅ BUSCA MOBILE: filtra enquanto digita e quando limpa no "X"
+    const buscaMob = document.getElementById('txt_search_mobile');
+    if (buscaMob) {
+        buscaMob.addEventListener('input', filtrarProdutos);
+
+        // evento "search" dispara no mobile ao apertar "Pesquisar" ou ao limpar no X do input type=search
+        buscaMob.addEventListener('search', () => filtrarProdutos());
+
+        buscaMob.addEventListener('keydown', (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                filtrarProdutos();
+            }
+        });
+    }
+
+
+    // ✅ BUSCA: garante que lupinha e teclado do celular executem a busca
+    const formBusca = document.getElementById('form_busca');
+    if (formBusca) {
+        formBusca.addEventListener('submit', (e) => {
+            e.preventDefault();
+            filtrarProdutos();
+            // opcional: fecha menu mobile após buscar
+            fechar_menu_mobile();
+        });
+    }
+
+
+
+    sincronizarBuscaEntreCampos();
+
+    // submit do form mobile
+    const formBuscaMob = document.getElementById('form_busca_mobile');
+    if (formBuscaMob) {
+        formBuscaMob.addEventListener('submit', (e) => {
+            e.preventDefault();
+            filtrarProdutos();
+        });
+    }
+
 
 
     const modais = [

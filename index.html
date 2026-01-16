@@ -6,11 +6,10 @@
   <meta charset='utf-8' />
   <meta content='width=device-width, initial-scale=1' name='viewport' />
 
-  <title>Minha Loja Online</title>
   <meta property="og:title" content="Minha Loja Online - Confira o Catálogo">
   <meta property="og:description" content="Os melhores produtos com os melhores preços. Clique e confira!">
 
-  <title id="seo_titulo">Carregando Loja...</title>
+  <title id="seo_titulo">Minha Loja Online</title>
   <meta id="seo_descricao" name='description' content='Catálogo de produtos online.' />
 
   <link rel="preconnect" href="https://script.google.com">
@@ -73,12 +72,23 @@
             <ul aria-labelledby='navbarDropdownMenuLink' class='dropdown-menu' id='categoria_menu'></ul>
           </li>
         </ul>
-        <form class='d-flex'>
-          <input aria-label='Buscar Produtos' class='form-control me-2' id='txt_search' placeholder='Buscar...'
-            type='search' />
-          <button class="btn btn-light" type="button" onclick="filtrarProdutos()">🔍</button>
+        <form class="d-none d-md-flex" id="form_busca" role="search" action="javascript:void(0)"> <input
+            aria-label="Buscar Produtos" class="form-control me-2" id="txt_search" placeholder="Buscar..."
+            type="search" />
+          <button class="btn btn-light" type="submit">🔍</button>
+        </form>
+
+      </div>
+
+      <!-- ✅ Busca fixa no topo (somente no mobile) -->
+      <div class="d-md-none w-100 mt-2">
+        <form class="d-flex" id="form_busca_mobile" role="search" action="javascript:void(0)">
+          <input class="form-control me-2" id="txt_search_mobile" placeholder="Buscar..." type="search" />
+          <button class="btn btn-light" type="submit">🔍</button>
         </form>
       </div>
+
+
     </div>
   </nav>
 
@@ -101,6 +111,7 @@
         <div id="loading_skeleton_boxes" class="row text-start mt-4"></div>
       </div>
 
+      <div id="filtros_atributos" class="mb-3"></div>
       <div class='row' id='div_produtos'></div>
     </div>
   </main>
