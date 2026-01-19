@@ -17,6 +17,12 @@
     .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#eef2ff;border:1px solid #dfe6ff}
     .error{color:#b00020}
     code{background:#f2f2f2;padding:2px 6px;border-radius:6px}
+
+
+
+    .iframeWrap{margin-top:12px;border:1px solid #e7e7e7;border-radius:12px;overflow:hidden}
+    .iframeWrap iframe{width:100%;height:520px;border:0}
+
   </style>
 </head>
 <body>
@@ -172,12 +178,48 @@
       }
 
       // ===== Render final =====
+      const codigo = j.tracking ? String(j.tracking).trim() : "";
+      const urlHistorico = codigo
+        ? ("https://www.linkcorreios.com.br/?id=" + encodeURIComponent(codigo))
+        : "";
+
       saida.innerHTML = `
         <div class="pill"><b>Etapa do envio (SuperFrete):</b> ${mapStatus(j.status)}</div>
-        <div style="margin-top:10px"><b>Código de rastreio:</b> ${j.tracking ? `<code>${j.tracking}</code>` : "Ainda não disponível"}</div>
+        <div style="margin-top:10px"><b>Código de rastreio:</b> ${codigo ? `<code>${codigo}</code>` : "Ainda não disponível"}</div>
         <div><b>Atualização da etiqueta:</b> ${j.updated_at || "—"}</div>
         ${correiosHtml}
+
+        ${urlHistorico ? `
+          <div style="margin-top:12px">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+              <b>Movimentações (histórico completo):</b>
+              <a class="btn" href="${urlHistorico}" target="_blank" rel="noopener">Abrir em nova aba</a>
+            </div>
+
+            <div class="iframeWrap" id="wrapIframe">
+              <iframe id="iframeHistorico" src="${urlHistorico}" loading="lazy"></iframe>
+            </div>
+
+            <div class="muted" id="iframeAviso" style="margin-top:8px;display:none">
+              Se o histórico não aparecer acima, o provedor pode bloquear exibição dentro do site.
+              Use o botão “Abrir em nova aba”.
+            </div>
+          </div>
+        ` : ""}
       `;
+
+      // aviso se o iframe não carregar
+      if (urlHistorico) {
+        const aviso = document.getElementById("iframeAviso");
+        const iframe = document.getElementById("iframeHistorico");
+
+        let carregou = false;
+        iframe.onload = () => { carregou = true; };
+
+        setTimeout(() => {
+          if (!carregou && aviso) aviso.style.display = "block";
+        }, 2500);
+      }
 
 
       if(j.rastreio_url){
