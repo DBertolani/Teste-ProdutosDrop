@@ -6,55 +6,113 @@
   <title>Rastreio</title>
   <meta name="robots" content="noindex,nofollow"/>
   <style>
-    body{font-family:system-ui,Arial;margin:0;background:#f6f7fb;color:#111}
-    header{padding:16px;background:#fff;border-bottom:1px solid #e7e7e7}
-    .wrap{max-width:760px;margin:0 auto;padding:16px}
-    .card{background:#fff;border:1px solid #e7e7e7;border-radius:14px;padding:16px}
-    .row{display:flex;gap:10px;flex-wrap:wrap}
-    input,button,a.btn{font-size:16px;padding:10px 12px;border-radius:10px;border:1px solid #d7d7d7}
-    button,a.btn{cursor:pointer;background:#111;color:#fff;border-color:#111;text-decoration:none;display:inline-block}
-    .muted{color:#666;font-size:13px}
-    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#eef2ff;border:1px solid #dfe6ff}
-    .error{color:#b00020}
-    code{background:#f2f2f2;padding:2px 6px;border-radius:6px}
+    :root{
+      --bg:#f6f7fb;
+      --card:#fff;
+      --border:#e7e7e7;
+      --muted:#667085;
+      --text:#101828;
+      --brand:#0d6efd;   /* ajuste aqui se quiser */
+      --ok:#12b76a;
+      --warn:#f79009;
+      --err:#b42318;
+    }
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;background:var(--bg);color:var(--text)}
+    header{padding:16px;background:#fff;border-bottom:1px solid var(--border)}
+    .wrap{max-width:820px;margin:0 auto;padding:16px}
+    .top{display:flex;align-items:center;gap:12px}
+    .logo{
+      width:42px;height:42px;border-radius:12px;
+      background:linear-gradient(135deg,var(--brand),#5b8cff);
+      display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;
+      flex:0 0 auto;
+    }
+    .title{display:flex;flex-direction:column;line-height:1.2}
+    .title b{font-size:16px}
+    .muted{color:var(--muted);font-size:13px}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    input,button,a.btn{
+      font-size:15px;padding:10px 12px;border-radius:12px;border:1px solid #d7d7d7
+    }
+    input{flex:1;min-width:220px}
+    button,a.btn{
+      cursor:pointer;background:var(--text);color:#fff;border-color:var(--text);
+      text-decoration:none;display:inline-block
+    }
+    button.secondary,a.btn.secondary{background:#fff;color:var(--text);border-color:#d0d5dd}
+    .pill{display:inline-flex;gap:8px;align-items:center;padding:7px 10px;border-radius:999px;border:1px solid #dfe6ff;background:#eef2ff;font-size:13px}
+    .pill .dot{width:9px;height:9px;border-radius:99px;background:var(--brand)}
+    .error{color:var(--err);font-weight:600}
+    code{background:#f2f2f2;padding:2px 6px;border-radius:8px}
 
+    /* timeline */
+    .timeline{margin-top:14px}
+    .event{
+      display:grid;grid-template-columns:18px 1fr;gap:12px;padding:12px 6px;border-radius:12px
+    }
+    .event:hover{background:#fafafa}
+    .line{
+      position:relative;display:flex;justify-content:center;
+    }
+    .line:before{
+      content:"";position:absolute;top:0;bottom:0;width:2px;background:#e5e7eb;border-radius:2px
+    }
+    .bubble{
+      position:relative;z-index:1;width:14px;height:14px;border-radius:99px;background:#fff;border:2px solid var(--brand);margin-top:2px
+    }
+    .evHead{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .evStatus{font-weight:700}
+    .evDate{font-size:13px;color:var(--muted)}
+    .evPlace{margin-top:6px;font-size:13px;color:var(--muted)}
+    .badge{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:4px 8px;border-radius:999px;border:1px solid #d0d5dd;background:#fff;font-size:12px;color:#344054
+    }
+    .kpi{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .kpi .box{border:1px solid var(--border);border-radius:14px;padding:10px 12px;background:#fff}
+    .kpi .box b{display:block;font-size:12px;color:var(--muted);font-weight:600}
+    .kpi .box span{font-weight:800}
 
-
-    .iframeWrap{margin-top:12px;border:1px solid #e7e7e7;border-radius:12px;overflow:hidden}
-    .iframeWrap iframe{width:100%;height:520px;border:0}
-
+    .smallNote{font-size:12px;color:var(--muted);margin-top:12px}
   </style>
 </head>
 <body>
 <header>
   <div class="wrap">
-    <b>Rastreio do Pedido</b>
-    <div class="muted">Página genérica (funciona em qualquer domínio)</div>
+    <div class="top">
+      <div class="logo">OI</div>
+      <div class="title">
+        <b>Rastreio do Pedido</b>
+        <div class="muted">Acompanhe as movimentações do envio (sem propaganda).</div>
+      </div>
+    </div>
   </div>
 </header>
 
 <div class="wrap">
-  <div class="card">
-    <div class="row">
-      <input id="id" placeholder="ID da etiqueta (SuperFrete_ID)" style="flex:1;min-width:260px"/>
-      <button onclick="consultar()">Consultar</button>
-    </div>
+  <div class="grid">
+    <div class="card">
+      <div class="row">
+        <input id="id" placeholder="SuperFrete_ID (opcional) — ex: pwjgy9sSJ1T7Ig0BtHxo"/>
+        <input id="code" placeholder="Código Correios (opcional) — ex: AN473600094BR"/>
+        <button onclick="consultar()">Consultar</button>
+      </div>
 
-<div class="row" style="margin-top:10px" id="boxScript" style="display:none">
-  <input id="script" placeholder="Cole aqui o SCRIPT_URL do WebApp" style="flex:1;min-width:260px"/>
-  <button onclick="salvarScript()">Salvar</button>
-</div>
+      <div class="row" style="margin-top:10px;display:none" id="boxScript">
+        <input id="script" placeholder="Cole aqui o SCRIPT_URL do WebApp (1 vez só)"/>
+        <button onclick="salvarScript()">Salvar</button>
+      </div>
 
+      <div id="saida" style="margin-top:12px"></div>
 
-    <div id="saida" style="margin-top:12px"></div>
-
-    <div class="row" style="margin-top:12px">
-      <a id="btnDetalhes" class="btn" href="#" target="_blank" rel="noopener" style="display:none">Ver detalhes</a>
-    </div>
-
-    <div class="muted" style="margin-top:10px">
-      Dica: você pode abrir já com parâmetros:<br/>
-      <code>?id=SEU_ID&amp;script=SUA_URL_WEBAPP</code>
+      <div class="smallNote">
+        Dica: você pode abrir com parâmetros:<br/>
+        <code>?id=SEU_SUPERFRETE_ID</code> ou <code>?code=SEU_CODIGO_CORREIOS</code><br/>
+        E opcionalmente: <code>&amp;script=SUA_URL_WEBAPP</code>
+      </div>
     </div>
   </div>
 </div>
@@ -67,64 +125,107 @@
     return u.searchParams.get(name);
   }
 
-  function mapStatus(s){
-    const m = {pending:"Pendente", released:"Liberado", posted:"Postado", delivered:"Entregue", canceled:"Cancelado"};
-    return m[s] || s || "—";
-  }
-
-  async function carregarConfigAuto(){
-    // 1) prioridade: querystring ?script=
-    const scriptParam = qs("script");
-    if (scriptParam) {
-      const v = decodeURIComponent(scriptParam).trim();
-      if (v) {
-        localStorage.setItem(LS_KEY, v);
-        return v;
-      }
-    }
-
-    // 2) localStorage (salvo uma vez)
-    const ls = (localStorage.getItem(LS_KEY) || "").trim();
-    if (ls) return ls;
-
-    // 3) config.json no mesmo domínio (GitHub/Cloudflare/etc)
-    try {
-      const r = await fetch(new URL("config.json", location.href).toString(), {cache:"no-store"});
-
-      if (r.ok) {
-        const j = await r.json();
-        const v = (j && j.SCRIPT_URL) ? String(j.SCRIPT_URL).trim() : "";
-        if (v) {
-          localStorage.setItem(LS_KEY, v);
-          return v;
-        }
-      }
-    } catch (e) {}
-
-    return "";
-  }
-
   function salvarScript(){
     const v = (document.getElementById("script").value || "").trim();
     if (!v) return;
     localStorage.setItem(LS_KEY, v);
     document.getElementById("boxScript").style.display = "none";
-    // tenta consultar automaticamente se já tiver ID
-    const id = (document.getElementById("id").value || "").trim();
-    if (id) consultar();
+    consultar();
+  }
+
+  async function carregarConfigAuto(){
+    const scriptParam = qs("script");
+    if (scriptParam) {
+      const v = decodeURIComponent(scriptParam).trim();
+      if (v) { localStorage.setItem(LS_KEY, v); return v; }
+    }
+
+    const ls = (localStorage.getItem(LS_KEY) || "").trim();
+    if (ls) return ls;
+
+    try {
+      const r = await fetch(new URL("config.json", location.href).toString(), {cache:"no-store"});
+      if (r.ok) {
+        const j = await r.json();
+        const v = (j && j.SCRIPT_URL) ? String(j.SCRIPT_URL).trim() : "";
+        if (v) { localStorage.setItem(LS_KEY, v); return v; }
+      }
+    } catch(e){}
+
+    return "";
+  }
+
+  function formatarDataBR(dtStr){
+    // entra "2026-01-17 00:09:07.000000"
+    if(!dtStr) return "—";
+    try{
+      const s = String(dtStr).replace(" ", "T").replace(".000000","") + "-03:00";
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return dtStr;
+      return d.toLocaleString("pt-BR", { dateStyle:"short", timeStyle:"short" });
+    }catch(e){
+      return dtStr;
+    }
+  }
+
+  function validarCodigo(code){
+    return /^[A-Z]{2}\d{9}[A-Z]{2}$/.test(String(code||"").trim().toUpperCase());
+  }
+
+  function renderTimeline(eventos){
+    if(!eventos || !eventos.length){
+      return `<div class="muted">Nenhuma movimentação encontrada.</div>`;
+    }
+
+    // eventos já vêm do mais recente -> mais antigo. Mantemos assim.
+    return `
+      <div class="timeline">
+        ${eventos.map((ev, idx) => `
+          <div class="event">
+            <div class="line"><div class="bubble"></div></div>
+            <div>
+              <div class="evHead">
+                <div class="evStatus">${ev.status || ""}</div>
+                <span class="badge">#${idx+1}</span>
+                <div class="evDate">${formatarDataBR(ev.data)}</div>
+              </div>
+              ${ev.detalhe ? `<div class="muted" style="margin-top:6px">${ev.detalhe}</div>` : ""}
+              <div class="evPlace">
+                ${ev.origem ? `<div><b>Origem:</b> ${ev.origem}</div>` : ""}
+                ${ev.destino ? `<div><b>Destino:</b> ${ev.destino}</div>` : ""}
+              </div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
   }
 
   async function consultar(){
     const saida = document.getElementById("saida");
-    const btn = document.getElementById("btnDetalhes");
-    btn.style.display = "none";
 
-    const id = (document.getElementById("id").value || "").trim();
-    if(!id){ saida.innerHTML = '<div class="error"><b>Informe o SuperFrete_ID.</b></div>'; return; }
+    let id = (document.getElementById("id").value || "").trim();
+    let code = (document.getElementById("code").value || "").trim().toUpperCase();
+
+    // se vier via URL
+    const idParam = qs("id");
+    const codeParam = qs("code");
+    if (!id && idParam) id = String(idParam).trim();
+    if (!code && codeParam) code = String(codeParam).trim().toUpperCase();
+
+    if(!id && !code){
+      saida.innerHTML = `<div class="error">Informe <b>SuperFrete_ID</b> ou <b>código dos Correios</b>.</div>`;
+      return;
+    }
+
+    if(code && !validarCodigo(code)){
+      saida.innerHTML = `<div class="error">Código dos Correios inválido. Ex: <code>AN473600094BR</code></div>`;
+      return;
+    }
 
     const script = await carregarConfigAuto();
     if(!script){
-      saida.innerHTML = '<div class="error"><b>Não encontrei o SCRIPT_URL.</b> Informe uma vez e clique em Salvar.</div>';
+      saida.innerHTML = `<div class="error"><b>Não encontrei o SCRIPT_URL.</b> Informe uma vez e clique em Salvar.</div>`;
       document.getElementById("boxScript").style.display = "flex";
       return;
     }
@@ -132,115 +233,77 @@
     saida.innerHTML = "Carregando...";
 
     try{
-      const url = script + "?rota=rastreio&id=" + encodeURIComponent(id);
-      const r = await fetch(url, {cache:"no-store"});
-      const j = await r.json();
+      // 1) Se temos SuperFrete_ID, primeiro buscamos tracking via SuperFrete
+      if(id){
+        const url1 = script + "?rota=rastreio&id=" + encodeURIComponent(id);
+        const r1 = await fetch(url1, {cache:"no-store"});
+        const j1 = await r1.json();
 
-      if(!j.ok){
-        saida.innerHTML = `<div class="error"><b>Falha:</b> ${j.erro || ("HTTP "+j.http)}</div>`;
-        return;
-      }
+        if(!j1.ok){
+          saida.innerHTML = `<div class="error"><b>Falha (SuperFrete):</b> ${j1.erro || ("HTTP "+j1.http)}</div>`;
+          return;
+        }
 
-      // ===== NOVO: bloco Correios (movimentação mais recente) =====
-      let correiosHtml = "";
-      if (j.correios) {
-        if (j.correios.success) {
-          correiosHtml = `
-            <div style="margin-top:12px;padding:12px;border:1px solid #e7e7e7;border-radius:12px">
-              <div><b>Movimentação mais recente (Correios):</b></div>
-              <div style="margin-top:6px"><b>${j.correios.descricao || ""}</b></div>
-              ${j.correios.detalhe ? `<div class="muted">${j.correios.detalhe}</div>` : ""}
-              <div class="muted" style="margin-top:6px">
-                ${j.correios.local || ""}${j.correios.data ? " • " + j.correios.data : ""}
-              </div>
-              ${j.correios.linkDetalhesCompletos ? `
-                <div style="margin-top:10px">
-                  <a class="btn" href="${j.correios.linkDetalhesCompletos}" target="_blank" rel="noopener">
-                    Ver histórico completo
-                  </a>
-                </div>` : ""}
-            </div>
-          `;
-        } else {
-          correiosHtml = `
-            <div style="margin-top:12px;padding:12px;border:1px solid #ffe2e2;background:#fff5f5;border-radius:12px">
-              <div><b>Movimentações (Correios):</b> indisponível no momento.</div>
-              <div class="muted" style="margin-top:6px">${j.correios.message || ""}</div>
-              ${j.correios.linkDetalhesCompletos ? `
-                <div style="margin-top:10px">
-                  <a class="btn" href="${j.correios.linkDetalhesCompletos}" target="_blank" rel="noopener">
-                    Tentar ver histórico completo
-                  </a>
-                </div>` : ""}
-            </div>
-          `;
+        if(j1.tracking){
+          code = String(j1.tracking).trim().toUpperCase();
+          document.getElementById("code").value = code;
         }
       }
 
-      // ===== Render final =====
-      const codigo = j.tracking ? String(j.tracking).trim() : "";
-      const urlHistorico = codigo
-        ? ("https://www.linkcorreios.com.br/?id=" + encodeURIComponent(codigo))
-        : "";
+      if(!code){
+        saida.innerHTML = `<div class="error">Ainda não existe código de rastreio para essa etiqueta.</div>`;
+        return;
+      }
+
+      // 2) Agora buscamos histórico completo via Wonca
+      const url2 = script + "?rota=rastreio_wonca&code=" + encodeURIComponent(code);
+      const r2 = await fetch(url2, {cache:"no-store"});
+      const j2 = await r2.json();
+
+      if(!j2.ok){
+        saida.innerHTML = `<div class="error"><b>Falha (Rastreio):</b> ${j2.erro || ("HTTP "+j2.http)}</div>`;
+        return;
+      }
+
+      const previsao = j2.previsao ? String(j2.previsao) : null;
+      const eventos = j2.eventos || [];
+
+      const eventoAtual = eventos && eventos.length ? eventos[0] : null;
 
       saida.innerHTML = `
-        <div class="pill"><b>Etapa do envio (SuperFrete):</b> ${mapStatus(j.status)}</div>
-        <div style="margin-top:10px"><b>Código de rastreio:</b> ${codigo ? `<code>${codigo}</code>` : "Ainda não disponível"}</div>
-        <div><b>Atualização da etiqueta:</b> ${j.updated_at || "—"}</div>
-        ${correiosHtml}
+        <div class="row" style="justify-content:space-between;align-items:flex-start">
+          <div class="pill"><span class="dot"></span><b>Objeto:</b>&nbsp;<code>${j2.codigo || code}</code></div>
+          <a class="btn secondary" href="javascript:void(0)" onclick="consultar()">Atualizar</a>
+        </div>
 
-        ${urlHistorico ? `
-          <div style="margin-top:12px">
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-              <b>Movimentações (histórico completo):</b>
-              <a class="btn" href="${urlHistorico}" target="_blank" rel="noopener">Abrir em nova aba</a>
-            </div>
-
-            <div class="iframeWrap" id="wrapIframe">
-              <iframe id="iframeHistorico" src="${urlHistorico}" loading="lazy"></iframe>
-            </div>
-
-            <div class="muted" id="iframeAviso" style="margin-top:8px;display:none">
-              Se o histórico não aparecer acima, o provedor pode bloquear exibição dentro do site.
-              Use o botão “Abrir em nova aba”.
-            </div>
+        <div class="kpi">
+          <div class="box">
+            <b>Status atual</b>
+            <span>${eventoAtual ? (eventoAtual.status || "—") : "—"}</span>
           </div>
-        ` : ""}
+          <div class="box">
+            <b>Previsão</b>
+            <span>${previsao || "—"}</span>
+          </div>
+        </div>
+
+        ${renderTimeline(eventos)}
       `;
 
-      // aviso se o iframe não carregar
-      if (urlHistorico) {
-        const aviso = document.getElementById("iframeAviso");
-        const iframe = document.getElementById("iframeHistorico");
-
-        let carregou = false;
-        iframe.onload = () => { carregou = true; };
-
-        setTimeout(() => {
-          if (!carregou && aviso) aviso.style.display = "block";
-        }, 2500);
-      }
-
-
-      if(j.rastreio_url){
-        btn.href = j.rastreio_url;
-        btn.style.display = "inline-block";
-      }
     }catch(e){
       saida.innerHTML = `<div class="error"><b>Erro:</b> ${e}</div>`;
     }
   }
 
-  // Auto-preenche por querystring ?id=
+  // preenche inputs com querystring
   const idParam = qs("id");
-  if(idParam) document.getElementById("id").value = idParam;
+  const codeParam = qs("code");
+  if (idParam) document.getElementById("id").value = idParam;
+  if (codeParam) document.getElementById("code").value = codeParam;
 
-  // Se já tiver id na URL, consulta automaticamente
-  if (idParam) consultar();
-
-  // Se não tiver, tenta ao menos carregar config pra não pedir depois
+  // auto-consulta se vier algo na URL
+  if (idParam || codeParam) consultar();
   carregarConfigAuto();
 </script>
-
 </body>
 </html>
