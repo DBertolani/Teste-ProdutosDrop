@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Rastreio</title>
+  <meta name="robots" content="noindex,nofollow"/>
+  <style>
+    body{font-family:system-ui,Arial;margin:0;background:#f6f7fb;color:#111}
+    header{padding:16px;background:#fff;border-bottom:1px solid #e7e7e7}
+    .wrap{max-width:760px;margin:0 auto;padding:16px}
+    .card{background:#fff;border:1px solid #e7e7e7;border-radius:14px;padding:16px}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    input,button,a.btn{font-size:16px;padding:10px 12px;border-radius:10px;border:1px solid #d7d7d7}
+    button,a.btn{cursor:pointer;background:#111;color:#fff;border-color:#111;text-decoration:none;display:inline-block}
+    .muted{color:#666;font-size:13px}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#eef2ff;border:1px solid #dfe6ff}
+    .error{color:#b00020}
+    code{background:#f2f2f2;padding:2px 6px;border-radius:6px}
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <b>Rastreio do Pedido</b>
+    <div class="muted">Página genérica (funciona em qualquer domínio)</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <div class="row">
+      <input id="id" placeholder="ID da etiqueta (SuperFrete_ID)" style="flex:1;min-width:260px"/>
+      <button onclick="consultar()">Consultar</button>
+    </div>
+
+<div class="row" style="margin-top:10px" id="boxScript" style="display:none">
+  <input id="script" placeholder="Cole aqui o SCRIPT_URL do WebApp" style="flex:1;min-width:260px"/>
+  <button onclick="salvarScript()">Salvar</button>
+</div>
+
+
+    <div id="saida" style="margin-top:12px"></div>
+
+    <div class="row" style="margin-top:12px">
+      <a id="btnDetalhes" class="btn" href="#" target="_blank" rel="noopener" style="display:none">Ver detalhes</a>
+    </div>
+
+    <div class="muted" style="margin-top:10px">
+      Dica: você pode abrir já com parâmetros:<br/>
+      <code>?id=SEU_ID&amp;script=SUA_URL_WEBAPP</code>
+    </div>
+  </div>
+</div>
+
+<script>
+  const LS_KEY = "SCRIPT_URL";
+
+  function qs(name){
+    const u = new URL(location.href);
+    return u.searchParams.get(name);
+  }
+
+  function mapStatus(s){
+    const m = {pending:"Pendente", released:"Liberado", posted:"Postado", delivered:"Entregue", canceled:"Cancelado"};
+    return m[s] || s || "—";
+  }
+
+  async function carregarConfigAuto(){
+    // 1) prioridade: querystring ?script=
+    const scriptParam = qs("script");
+    if (scriptParam) {
+      const v = decodeURIComponent(scriptParam).trim();
+      if (v) {
+        localStorage.setItem(LS_KEY, v);
+        return v;
+      }
+    }
+
+    // 2) localStorage (salvo uma vez)
+    const ls = (localStorage.getItem(LS_KEY) || "").trim();
+    if (ls) return ls;
+
+    // 3) config.json no mesmo domínio (GitHub/Cloudflare/etc)
+    try {
+      const r = await fetch(new URL("config.json", location.href).toString(), {cache:"no-store"});
+
+      if (r.ok) {
+        const j = await r.json();
+        const v = (j && j.SCRIPT_URL) ? String(j.SCRIPT_URL).trim() : "";
+        if (v) {
+          localStorage.setItem(LS_KEY, v);
+          return v;
+        }
+      }
+    } catch (e) {}
+
+    return "";
+  }
+
+  function salvarScript(){
+    const v = (document.getElementById("script").value || "").trim();
+    if (!v) return;
+    localStorage.setItem(LS_KEY, v);
+    document.getElementById("boxScript").style.display = "none";
+    // tenta consultar automaticamente se já tiver ID
+    const id = (document.getElementById("id").value || "").trim();
+    if (id) consultar();
+  }
+
+  async function consultar(){
+    const saida = document.getElementById("saida");
+    const btn = document.getElementById("btnDetalhes");
+    btn.style.display = "none";
+
+    const id = (document.getElementById("id").value || "").trim();
+    if(!id){ saida.innerHTML = '<div class="error"><b>Informe o SuperFrete_ID.</b></div>'; return; }
+
+    const script = await carregarConfigAuto();
+    if(!script){
+      saida.innerHTML = '<div class="error"><b>Não encontrei o SCRIPT_URL.</b> Informe uma vez e clique em Salvar.</div>';
+      document.getElementById("boxScript").style.display = "flex";
+      return;
+    }
+
+    saida.innerHTML = "Carregando...";
+
+    try{
+      const url = script + "?rota=rastreio&id=" + encodeURIComponent(id);
+      const r = await fetch(url, {cache:"no-store"});
+      const j = await r.json();
+
+      if(!j.ok){
+        saida.innerHTML = `<div class="error"><b>Falha:</b> ${j.erro || ("HTTP "+j.http)}</div>`;
+        return;
+      }
+
+      // ===== NOVO: bloco Correios (movimentação mais recente) =====
+      let correiosHtml = "";
+      if (j.correios) {
+        if (j.correios.success) {
+          correiosHtml = `
+            <div style="margin-top:12px;padding:12px;border:1px solid #e7e7e7;border-radius:12px">
+              <div><b>Movimentação mais recente (Correios):</b></div>
+              <div style="margin-top:6px"><b>${j.correios.descricao || ""}</b></div>
+              ${j.correios.detalhe ? `<div class="muted">${j.correios.detalhe}</div>` : ""}
+              <div class="muted" style="margin-top:6px">
+                ${j.correios.local || ""}${j.correios.data ? " • " + j.correios.data : ""}
+              </div>
+              ${j.correios.linkDetalhesCompletos ? `
+                <div style="margin-top:10px">
+                  <a class="btn" href="${j.correios.linkDetalhesCompletos}" target="_blank" rel="noopener">
+                    Ver histórico completo
+                  </a>
+                </div>` : ""}
+            </div>
+          `;
+        } else {
+          correiosHtml = `
+            <div style="margin-top:12px;padding:12px;border:1px solid #ffe2e2;background:#fff5f5;border-radius:12px">
+              <div><b>Movimentações (Correios):</b> indisponível no momento.</div>
+              <div class="muted" style="margin-top:6px">${j.correios.message || ""}</div>
+              ${j.correios.linkDetalhesCompletos ? `
+                <div style="margin-top:10px">
+                  <a class="btn" href="${j.correios.linkDetalhesCompletos}" target="_blank" rel="noopener">
+                    Tentar ver histórico completo
+                  </a>
+                </div>` : ""}
+            </div>
+          `;
+        }
+      }
+
+      // ===== Render final =====
+      saida.innerHTML = `
+        <div class="pill"><b>Etapa do envio (SuperFrete):</b> ${mapStatus(j.status)}</div>
+        <div style="margin-top:10px"><b>Código de rastreio:</b> ${j.tracking ? `<code>${j.tracking}</code>` : "Ainda não disponível"}</div>
+        <div><b>Atualização da etiqueta:</b> ${j.updated_at || "—"}</div>
+        ${correiosHtml}
+      `;
+
+
+      if(j.rastreio_url){
+        btn.href = j.rastreio_url;
+        btn.style.display = "inline-block";
+      }
+    }catch(e){
+      saida.innerHTML = `<div class="error"><b>Erro:</b> ${e}</div>`;
+    }
+  }
+
+  // Auto-preenche por querystring ?id=
+  const idParam = qs("id");
+  if(idParam) document.getElementById("id").value = idParam;
+
+  // Se já tiver id na URL, consulta automaticamente
+  if (idParam) consultar();
+
+  // Se não tiver, tenta ao menos carregar config pra não pedir depois
+  carregarConfigAuto();
+</script>
+
+</body>
+</html>
