@@ -445,13 +445,15 @@ function viewerNext() {
 }
 
 // ✅ resumo da descrição (primeira frase / fallback por tamanho)
+// ✅ Resumo Inteligente: Remove o HTML para a prévia não ficar bagunçada
 function obterResumoDescricao(texto, maxChars) {
-    const t = String(texto || "").trim();
-    if (!t) return "";
+    // Remove tags HTML (<br>, <b>, <h2>) apenas para o resumo visual
+    const textoPuro = String(texto || "").replace(/<[^>]*>?/gm, '').trim();
+    
+    if (!textoPuro) return "";
 
-    // tenta pegar até o primeiro ponto final
-    const ponto = t.indexOf(".");
-    let resumo = (ponto > 20) ? t.slice(0, ponto + 1) : t;
+    const ponto = textoPuro.indexOf(".");
+    let resumo = (ponto > 20) ? textoPuro.slice(0, ponto + 1) : textoPuro;
 
     const lim = maxChars || 160;
     if (resumo.length > lim) resumo = resumo.slice(0, lim).trim() + "…";
@@ -496,7 +498,8 @@ function abrir_modal_ver(id) {
     const full = document.getElementById('modalDescricaoCompletaTexto');
 
     if (tit) tit.innerText = produtoAtual.Produto || "Descrição";
-    if (full) full.innerText = descCompleta;
+    // ✅ CORREÇÃO: Usar innerHTML para interpretar o código da IA
+    if (full) full.innerHTML = descCompleta;
 
 
     var containerImagens = document.getElementById('carouselImagensContainer');
