@@ -1801,3 +1801,62 @@ function efetivarPagamentoFinal() {
             }
         });
 }
+
+// --- LÓGICA DE LOGIN (MEUS PEDIDOS) ---
+
+function iniciarLoginMeusPedidos() {
+    var cpf = document.getElementById('login_cpf_acesso').value.replace(/\D/g, '');
+    if (cpf.length !== 11) { alert("CPF inválido"); return; }
+
+    var btn = document.getElementById('btn_login_otp');
+    var original = btn.innerText;
+    btn.innerText = "Enviando...";
+    btn.disabled = true;
+
+    // Reusa a mesma rota segura do checkout!
+    fetch(CONFIG.SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ op: "solicitar_codigo", cpf: cpf })
+    })
+    .then(r => r.json())
+    .then(dados => {
+        btn.innerText = original;
+        btn.disabled = false;
+
+        if (dados.encontrado) {
+            // Mostra campo de código
+            document.getElementById('form-login-otp').style.opacity = '0.5';
+            $("#area_codigo_login").slideDown();
+            document.getElementById('login_otp_input').focus();
+            alert("Código enviado para o e-mail cadastrado!");
+        } else {
+            alert("CPF não encontrado. Faça sua primeira compra para se cadastrar.");
+        }
+    })
+    .catch(e => {
+        btn.disabled = false;
+        alert("Erro de conexão.");
+    });
+}
+
+function validarLoginMeusPedidos() {
+    var cpf = document.getElementById('login_cpf_acesso').value.replace(/\D/g, '');
+    var codigo = document.getElementById('login_otp_input').value;
+
+    fetch(CONFIG.SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ op: "validar_codigo", cpf: cpf, codigo: codigo })
+    })
+    .then(r => r.json())
+    .then(dados => {
+        if (dados.encontrado) {
+            // SUCESSO! Aqui você redirecionaria para uma página de pedidos
+            // Por enquanto, vamos apenas mostrar um alerta ou abrir um modal de lista
+            alert("Login realizado com sucesso! \nOlá " + dados.nome);
+            bootstrap.Modal.getInstance(document.getElementById('modalLogin')).hide();
+            // Futuro: abrirModalMeusPedidos(dados.cpf);
+        } else {
+            alert("Código inválido.");
+        }
+    });
+}
