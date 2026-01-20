@@ -1223,11 +1223,9 @@ function iniciarPagamentoFinal(ev) {
         dimensoes: "Calculado via Carrinho"
     };
 
-    // ✅ junta "complemento + referência" (se você tiver o campo checkout_referencia)
-    const ref = (document.getElementById('checkout_referencia')?.value || "").trim();
-    if (ref) {
-        cliente.complemento = (cliente.complemento ? cliente.complemento + " | " : "") + "Ref: " + ref;
-    }
+        // ✅ NOVO: referência separada (não junta com complemento)
+        cliente.referencia = (document.getElementById('checkout_referencia')?.value || "").trim();
+
 
     // ✅ guarda tudo para confirmar depois
     window.__pedidoPendente = { cliente, items, logisticaInfo, btn };
@@ -1557,7 +1555,9 @@ function confirmarDadosExistentes(modo) {
     document.getElementById('checkout_uf').value = enderecoEntregaTemp.uf || "";
     document.getElementById('checkout_complemento').value = enderecoEntregaTemp.complemento || "";
     const refEl = document.getElementById('checkout_referencia');
-    if (refEl) refEl.value = "";
+    if (refEl) refEl.value = enderecoEntregaTemp.referencia || "";
+
+
 
 
     // Se o modo for "usar", você pode deixar como está e só seguir.
