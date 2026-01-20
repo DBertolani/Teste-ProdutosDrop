@@ -1552,76 +1552,61 @@ function buscarCepNoCheckout() {
 
 // 4. Ajuste na função de confirmar para preencher o novo campo de CEP
 function confirmarDadosExistentes(acao) {
-  // fecha modal de identificação
+  // Fecha modal de identificação
   var mIdent = bootstrap.Modal.getInstance(document.getElementById('modalIdentificacao'));
   if (mIdent) mIdent.hide();
 
-  // ✅ CPF: como o backend não devolve cpf, usa o que o usuário digitou / guardou
+  // ✅ CPF
   const cpfDigitado = (document.getElementById('cpf_identificacao')?.value || "").replace(/\D/g, "");
   document.getElementById('checkout_cpf').value = enderecoEntregaTemp.cpf || cpfDigitado || "";
 
-  document.getElementById('checkout_nome').value      = enderecoEntregaTemp.nome || "";
-  document.getElementById('checkout_sobrenome').value = enderecoEntregaTemp.sobrenome || "";
-  document.getElementById('checkout_telefone').value  = enderecoEntregaTemp.telefone || "";
-
-  // ✅ email
+  // ✅ Dados Pessoais
+  document.getElementById('checkout_nome').value      = S(enderecoEntregaTemp.nome);
+  document.getElementById('checkout_sobrenome').value = S(enderecoEntregaTemp.sobrenome);
+  document.getElementById('checkout_telefone').value  = S(enderecoEntregaTemp.telefone);
+  
   var elEmail = document.getElementById('checkout_email');
-  if (elEmail) elEmail.value = enderecoEntregaTemp.email || "";
+  if (elEmail) elEmail.value = S(enderecoEntregaTemp.email);
 
-  // ✅ DETECTOR de “campos deslocados”
-  // Caso típico do seu print:
-  // bairro = "Prédio Cinza" (na prática referencia)
-  // cidade = "Cidade Nova"  (na prática bairro)
-  // uf = "Itaperuna"        (na prática cidade)
-  // e referencia vazio
-  const refRaw    = S(enderecoEntregaTemp.referencia);
-  const bairroRaw  = S(enderecoEntregaTemp.bairro);
-  const cidadeRaw  = S(enderecoEntregaTemp.cidade);
-  const ufRaw      = S(enderecoEntregaTemp.uf);
+  // ❌ REMOVIDO: Lógica de "pareceDeslocado". 
+  // O Backend agora garante a integridade das colunas via headerMap_.
+  
+  // ✅ Endereço - Mapeamento Direto e Seguro
+  document.getElementById('checkout_cep').value         = S(enderecoEntregaTemp.cep);
+  document.getElementById('checkout_rua').value         = S(enderecoEntregaTemp.rua);
+  document.getElementById('checkout_numero').value      = S(enderecoEntregaTemp.numero);
+  document.getElementById('checkout_complemento').value = S(enderecoEntregaTemp.complemento);
+  
+  // ✅ CORREÇÃO: Mapeamento direto sem heurística
+  document.getElementById('checkout_referencia').value  = S(enderecoEntregaTemp.referencia); 
+  document.getElementById('checkout_bairro').value      = S(enderecoEntregaTemp.bairro);
+  document.getElementById('checkout_cidade').value      = S(enderecoEntregaTemp.cidade);
+  
+  // Prioriza UF, depois Estado, depois UF2 (alguns APIs retornam diferente)
+  let ufFinal = S(enderecoEntregaTemp.uf) || S(enderecoEntregaTemp.estado) || S(enderecoEntregaTemp.uf2);
+  document.getElementById('checkout_uf').value = ufFinal;
 
-  const pareceDeslocado = (!refRaw && bairroRaw && cidadeRaw && ufRaw && ufRaw.length > 2);
+  // ✅ BLINDAGEM: Se o UF vier com nome completo (ex: "Minas Gerais") ou vazio,
+  // tentamos corrigir via ViaCEP silenciosamente se tivermos o CEP.
+  const cepLimpo = S(enderecoEntregaTemp.cep).replace(/\D/g, "");
+  
+  if (cepLimpo.length === 8 && ufFinal.length !== 2) {
+      // Recupera UF correto do ViaCEP sem travar a tela
+      fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+        .then(r => r.json())
+        .then(d => {
+            if (!d.erro) {
+                document.getElementById('checkout_uf').value = d.uf;
+                // Se cidade estiver vazia, preenche também
+                if (!document.getElementById('checkout_cidade').value) {
+                    document.getElementById('checkout_cidade').value = d.localidade;
+                }
+            }
+        })
+        .catch(() => {}); // Falha silenciosa
+  }
 
-  const referenciaFinal = pareceDeslocado ? bairroRaw : refRaw;
-  const bairroFinal     = pareceDeslocado ? cidadeRaw : bairroRaw;
-  const cidadeFinal     = pareceDeslocado ? ufRaw     : cidadeRaw;
-  const ufFinal         = pareceDeslocado ? (S(enderecoEntregaTemp.estado) || S(enderecoEntregaTemp.uf2) || "") : ufRaw;
-
-  // ✅ endereço
-  document.getElementById('checkout_cep').value         = enderecoEntregaTemp.cep || "";
-  document.getElementById('checkout_rua').value         = enderecoEntregaTemp.rua || "";
-  document.getElementById('checkout_numero').value      = enderecoEntregaTemp.numero || "";
-  document.getElementById('checkout_complemento').value = enderecoEntregaTemp.complemento || "";
-
-  document.getElementById('checkout_bairro').value = bairroFinal;
-  document.getElementById('checkout_cidade').value = cidadeFinal;
-  document.getElementById('checkout_uf').value     = ufFinal || ufRaw || "";
-
-                    // ✅ Blindagem: se "UF" vier errado (ex: "Itaperuna"), corrige via ViaCEP
-                try {
-                  const ufAtual = (document.getElementById('checkout_uf')?.value || "").trim();
-                  const cepAtual = (document.getElementById('checkout_cep')?.value || "").replace(/\D/g, "");
-                
-                  if (cepAtual && (ufAtual.length !== 2)) {
-                    fetch(`https://viacep.com.br/ws/${cepAtual}/json/`)
-                      .then(r => r.json())
-                      .then(d => {
-                        if (!d.erro) {
-                          document.getElementById('checkout_uf').value = d.uf || "";
-                          // opcional: garantir cidade também
-                          if (!document.getElementById('checkout_cidade').value) {
-                            document.getElementById('checkout_cidade').value = d.localidade || "";
-                          }
-                        }
-                      })
-                      .catch(() => {});
-                  }
-                } catch (e) {}
-
-
-  // ✅ referencia
-  var elRef = document.getElementById('checkout_referencia');
-  if (elRef) elRef.value = referenciaFinal;
-
+  // Abre o modal
   new bootstrap.Modal(document.getElementById('modalCheckout')).show();
 
   setTimeout(() => {
