@@ -1876,36 +1876,47 @@ function efetivarPagamentoFinal() {
         btn.disabled = true;
     }
 
-    // ✅ NOVO: Desvio para WhatsApp (se configurado na planilha)
+    // ✅ CORREÇÃO PARA CHECKOUT WHATSAPP
     if (CONFIG_LOJA.TipoCheckout === "WhatsApp") {
-        let texto = `*Novo Pedido - ${CONFIG_LOJA.NomeDoSite}*\n\n`;
+        let texto = `*Novo Pedido - ${CONFIG_LOJA.NomeDoSite || "Loja"}*\n\n`;
         texto += `*Cliente:* ${cliente.nome} ${cliente.sobrenome}\n`;
-        texto += `*Telefone:* ${cliente.whatsapp}\n`;
-        texto += `*Endereço:* ${cliente.rua}, ${cliente.numero} - ${cliente.bairro}, ${cliente.cidade}/${cliente.uf}\n\n`;
+        texto += `*Telefone:* ${cliente.telefone}\n`; // Corrigido de .whatsapp para .telefone
+        texto += `*Endereço:* ${cliente.rua}, ${cliente.numero}\n`;
+        texto += `*Bairro:* ${cliente.bairro} - ${cliente.cidade}/${cliente.uf}\n`;
+        if(cliente.complemento) texto += `*Comp:* ${cliente.complemento}\n`;
+        texto += `\n*--- Itens ---*\n`;
         
-        texto += `*Itens:*\n`;
-        let totalProdutos = 0;
+        let subtotalProdutos = 0;
         items.forEach(it => {
-            texto += `- ${it.quantity}x ${it.title} (${formatBRL(it.unit_price)})\n`;
-            totalProdutos += (it.unit_price * it.quantity);
+            // Ignora a linha de frete que o sistema injeta no array para o Mercado Pago
+            if (!it.title.toLowerCase().includes("frete")) {
+                texto += `✅ ${it.quantity}x ${it.title} (${formatBRL(it.unit_price)})\n`;
+                subtotalProdutos += (it.unit_price * it.quantity);
+            }
         });
 
-        const valorFrete = parseFloat(logisticaInfo.valor) || 0;
-        const totalFinal = totalProdutos + valorFrete;
+        const valorDoFrete = Number(freteCalculado) || 0;
+        const totalGeral = subtotalProdutos + valorDoFrete;
 
-        texto += `\n*Produtos:* ${formatBRL(totalProdutos)}`;
-        texto += `\n*Frete:* ${formatBRL(valorFrete)}`;
-        texto += `\n*Total Final: ${formatBRL(totalFinal)}*`;
+        texto += `\n*Subtotal:* ${formatBRL(subtotalProdutos)}`;
+        texto += `\n*Frete (${freteSelecionadoNome}):* ${formatBRL(valorDoFrete)}`;
+        texto += `\n*TOTAL FINAL: ${formatBRL(totalGeral)}*`;
 
-        const fone = CONFIG_LOJA.NumeroWhatsapp.replace(/\D/g, '');
-        const linkWa = `https://wa.me/${fone}?text=${encodeURIComponent(texto)}`;
+        const numeroDestino = String(CONFIG_LOJA.NumeroWhatsapp || "").replace(/\D/g, '');
+        const linkWa = `https://wa.me/${numeroDestino}?text=${encodeURIComponent(texto)}`;
         
         if (btn) {
-            btn.innerText = "Concluído!";
+            btn.innerText = "Pedido Enviado!";
         }
         
+        // Abre o WhatsApp
         window.open(linkWa, '_blank');
-        return; // Interrompe aqui, não chama o Mercado Pago
+        
+        // Opcional: Limpar carrinho após enviar para o WhatsApp
+        // localStorage.removeItem('carrinho');
+        // atualizar_carrinho();
+        
+        return; 
     }
 
     // --- Fluxo Original Mercado Pago (Mantido) ---
@@ -1914,7 +1925,14 @@ function efetivarPagamentoFinal() {
         body: JSON.stringify({ cliente, items, logistica: logisticaInfo })
     })
     .then(r => r.text())
-    .then(link => { window.location.href = link; })
+    .then(link => { 
+        if(link.includes("http")) {
+            window.location.href = link; 
+        } else {
+            alert("Erro ao gerar link de pagamento: " + link);
+            if(btn) { btn.innerText = "Tentar Novamente"; btn.disabled = false; }
+        }
+    })
     .catch(e => {
         alert("Erro ao processar.");
         if (btn) {
