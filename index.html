@@ -87,19 +87,21 @@ footer.site-footer a{
         <span class='navbar-toggler-icon'></span>
       </button>
       <div class='collapse navbar-collapse' id='navbarCollapse'>
+
         <ul class='navbar-nav me-auto mb-2 mb-md-0'>
-          <li class='nav-item'><a class='nav-link active' data-bs-target='#modalUsuario' data-bs-toggle='modal' href='#'
-              id='btn_registrarse'>Cadastre-se</a></li>
-          <li class='nav-item'><a class='nav-link active' data-bs-target='#modalLogin' data-bs-toggle='modal' href='#'
-              id='btn_login'>Login</a></li>
-          <li class='nav-item'><a class='nav-link active' href='#' id='btn_logout'>Sair</a></li>
-          <li class='nav-item'><a class='nav-link active' data-bs-target='#modalUsuario' data-bs-toggle='modal' href='#'
-              id='btn_actualizar'>Atualizar Dados</a></li>
+          
+          <li class='nav-item'>
+            <a class='nav-link active fw-bold' data-bs-target='#modalLogin' data-bs-toggle='modal' href='#' id='btn_login'>
+              📦 Meus Pedidos
+            </a>
+          </li>
+
           <li class='nav-item dropdown'>
             <a aria-expanded='false' class='nav-link active dropdown-toggle' data-bs-toggle='dropdown' href='#'
               id='navbarDropdownMenuLink' role='button'>Categorias</a>
             <ul aria-labelledby='navbarDropdownMenuLink' class='dropdown-menu' id='categoria_menu'></ul>
           </li>
+          
         </ul>
         <form class="d-none d-md-flex" id="form_busca" role="search" action="javascript:void(0)"> <input
             aria-label="Buscar Produtos" class="form-control me-2" id="txt_search" placeholder="Buscar..."
