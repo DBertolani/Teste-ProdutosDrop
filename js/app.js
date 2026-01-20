@@ -1829,20 +1829,24 @@ function logoutSessao() {
 
 // Intercepta o clique no botão "Meus Pedidos" da Navbar
 function cliqueMeusPedidos(e) {
+    e.preventDefault(); 
+    e.stopPropagation(); // Impede que o Bootstrap tente abrir algo automaticamente
+
     const cpfAtivo = verificarSessaoAtiva();
+    
     if (cpfAtivo) {
-        // Se tem sessão válida, não abre o modal de login.
-        // Abre direto a lista de pedidos.
-        e.preventDefault();
-        e.stopPropagation();
+        // CENÁRIO 1: Sessão válida -> Abre histórico direto
         
-        // Se o modal de login estiver aberto (por delay), fecha ele
-        const modalLogin = bootstrap.Modal.getInstance(document.getElementById('modalLogin'));
+        // Garante que o modal de login esteja fechado
+        const elLogin = document.getElementById('modalLogin');
+        const modalLogin = bootstrap.Modal.getInstance(elLogin);
         if (modalLogin) modalLogin.hide();
 
         abrirModalMeusPedidos(cpfAtivo);
+    } else {
+        // CENÁRIO 2: Sessão expirada ou inexistente -> Abre Login
+        new bootstrap.Modal(document.getElementById('modalLogin')).show();
     }
-    // Se não tem sessão, deixa o Bootstrap abrir o modalLogin normalmente
 }
 
 
@@ -2043,9 +2047,14 @@ document.addEventListener("DOMContentLoaded", function () {
     carregar_config();
     atualizar_carrinho();
 
-    // ✅ SESSÃO: Adiciona o listener no botão "Meus Pedidos"
+    // ✅ SESSÃO: Configura o botão "Meus Pedidos" para controle total via JS
     const btnMeusPedidos = document.getElementById('btn_login');
     if (btnMeusPedidos) {
+        // REMOVE ATRIBUTOS AUTOMÁTICOS DO HTML PARA EVITAR ABRIR DUAS JANELAS
+        btnMeusPedidos.removeAttribute('data-bs-toggle');
+        btnMeusPedidos.removeAttribute('data-bs-target');
+        
+        // Adiciona nosso gerenciador inteligente
         btnMeusPedidos.addEventListener('click', cliqueMeusPedidos);
     }
 
@@ -2074,7 +2083,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // ✅ BUSCA MOBILE: filtra enquanto digita e quando limpa no "X"
+    // ✅ BUSCA MOBILE
     const buscaMob = document.getElementById('txt_search_mobile');
     if (buscaMob) {
         buscaMob.addEventListener('input', filtrarProdutos);
@@ -2088,7 +2097,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // ✅ BUSCA: garante que lupinha e teclado do celular executem a busca
+    // ✅ BUSCA: Form submit
     const formBusca = document.getElementById('form_busca');
     if (formBusca) {
         formBusca.addEventListener('submit', (e) => {
