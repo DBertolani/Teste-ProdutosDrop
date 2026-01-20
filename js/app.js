@@ -1092,7 +1092,8 @@ function irParaCheckout() {
         document.getElementById('checkout_rua').value = enderecoEntregaTemp.logradouro;
         document.getElementById('checkout_bairro').value = enderecoEntregaTemp.bairro;
         document.getElementById('checkout_cidade').value = enderecoEntregaTemp.localidade;
-        document.getElementById('checkout_uf').value = enderecoEntregaTemp.uf;
+        document.getElementById('checkout_uf').value = enderecoEntregaTemp.estado || enderecoEntregaTemp.uf || "";
+
         setTimeout(() => document.getElementById('checkout_numero').focus(), 500);
     }
 
@@ -1124,7 +1125,8 @@ $(document).on('blur', '#checkout_cpf', function () {
                         document.getElementById('checkout_numero').value = dados.numero || "";
                         document.getElementById('checkout_bairro').value = dados.bairro || "";
                         document.getElementById('checkout_cidade').value = dados.cidade || "";
-                        document.getElementById('checkout_uf').value = dados.uf || "";
+                      document.getElementById('checkout_uf').value = enderecoEntregaTemp.estado || enderecoEntregaTemp.uf || "";
+
                         document.getElementById('checkout_complemento').value = dados.complemento || "";
 
                         // Validação Crítica de CEP
@@ -1536,7 +1538,8 @@ function buscarCepNoCheckout() {
                 document.getElementById('checkout_rua').value = d.logradouro;
                 document.getElementById('checkout_bairro').value = d.bairro;
                 document.getElementById('checkout_cidade').value = d.localidade;
-                document.getElementById('checkout_uf').value = d.uf;
+                document.getElementById('checkout_uf').value = enderecoEntregaTemp.estado || enderecoEntregaTemp.uf || "";
+
                 enderecoEntregaTemp.cep = cep; // Atualiza para validação de frete
                 validarCepsIdenticos();
             } else {
@@ -1590,6 +1593,28 @@ function confirmarDadosExistentes(acao) {
   document.getElementById('checkout_bairro').value = bairroFinal;
   document.getElementById('checkout_cidade').value = cidadeFinal;
   document.getElementById('checkout_uf').value     = ufFinal || ufRaw || "";
+
+                    // ✅ Blindagem: se "UF" vier errado (ex: "Itaperuna"), corrige via ViaCEP
+                try {
+                  const ufAtual = (document.getElementById('checkout_uf')?.value || "").trim();
+                  const cepAtual = (document.getElementById('checkout_cep')?.value || "").replace(/\D/g, "");
+                
+                  if (cepAtual && (ufAtual.length !== 2)) {
+                    fetch(`https://viacep.com.br/ws/${cepAtual}/json/`)
+                      .then(r => r.json())
+                      .then(d => {
+                        if (!d.erro) {
+                          document.getElementById('checkout_uf').value = d.uf || "";
+                          // opcional: garantir cidade também
+                          if (!document.getElementById('checkout_cidade').value) {
+                            document.getElementById('checkout_cidade').value = d.localidade || "";
+                          }
+                        }
+                      })
+                      .catch(() => {});
+                  }
+                } catch (e) {}
+
 
   // ✅ referencia
   var elRef = document.getElementById('checkout_referencia');
