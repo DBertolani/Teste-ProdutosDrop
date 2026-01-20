@@ -526,7 +526,7 @@ footer.site-footer a{
   <script src="js/app.js?v=20260113-1" defer></script>
 
 
-  <div class="modal fade" id="modalIdentificacao" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="modalIdentificacao" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
 
       <div class="modal-content shadow-lg border-0">
@@ -534,58 +534,57 @@ footer.site-footer a{
           <h5 class="modal-title">Identificação do Pedido</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
+
         <div class="modal-body">
-          <p class="text-muted small">Para concluir seu pedido e garantir a segurança da entrega, precisamos identificar
-            o destinatário.</p>
-          <div class="mb-3">
-            <label class="form-label fw-bold">Informe o CPF do destinatário:</label>
-            <input type="text" class="form-control form-control-lg" id="cpf_identificacao" placeholder="000.000.000-00">
+          <p class="text-muted small">Para sua segurança, enviaremos um código de verificação para seu e-mail cadastrado.</p>
+
+          <div id="passo_cpf">
+            <div class="mb-3">
+              <label class="form-label fw-bold">Informe o CPF do destinatário:</label>
+              <input type="text" class="form-control form-control-lg" id="cpf_identificacao"
+                placeholder="000.000.000-00" oninput="mascaraCpf(this)">
+            </div>
+
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="check_lgpd">
+              <label class="form-check-label small" for="check_lgpd">
+                Autorizo o uso dos dados para processamento do pedido.
+              </label>
+            </div>
+
+            <div class="d-grid">
+              <button class="btn btn-primary btn-lg" id="btn_buscar_identidade" onclick="iniciarIdentificacaoSegura()"
+                disabled>
+                Continuar
+              </button>
+            </div>
           </div>
 
-          <input class="form-check-input" type="checkbox" id="check_lgpd">
-          <label class="form-check-label small" for="check_lgpd">
-            Autorizo o uso dos meus dados para <strong>identificação do destinatário</strong> e <strong>processamento da
-              entrega</strong>
-            (conforme LGPD). Os dados são usados somente para este pedido.
-          </label>
-          <div class="form-text">Sem essa autorização, não conseguimos buscar dados pelo CPF.</div>
+          <div id="passo_codigo" style="display:none;">
+            <div class="alert alert-info py-2 small">
+              <i class="bi bi-envelope"></i> Código enviado para: <strong id="lbl_destino_codigo">...</strong>
+            </div>
 
-        </div>
-        <div id="resultado_busca_identidade" style="display:none;" class="p-3 bg-light rounded border mb-3">
-          <h6 class="mb-2">Registro Encontrado!</h6>
-          <div id="resumo_dados_cliente" class="small text-muted mb-3"></div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">Digite o Código de 6 dígitos:</label>
+              <input type="tel" class="form-control form-control-lg text-center tracking-widest" id="input_codigo_otp"
+                placeholder="000000" maxlength="6" style="letter-spacing: 5px; font-weight: bold;">
+            </div>
 
-          <div class="d-grid gap-2">
-            <button class="btn btn-success" onclick="confirmarDadosExistentes('usar')"
-              aria-label="Usar destinatário e endereço encontrados">
-              <i class="bi bi-check-circle me-2" aria-hidden="true"></i>
-              Usar este destinatário e endereço
-            </button>
-
-            <button class="btn btn-warning" onclick="confirmarDadosExistentes('editar')"
-              aria-label="Editar ou atualizar dados antes de pagar">
-              <i class="bi bi-pencil-square me-2" aria-hidden="true"></i>
-              Editar/atualizar antes de pagar
-            </button>
-
-            <button class="btn btn-outline-secondary" onclick="irParaCheckoutManual()"
-              aria-label="Enviar para outro destinatário e endereço">
-              <i class="bi bi-person-plus me-2" aria-hidden="true"></i>
-              Enviar para outro destinatário/endereço
-            </button>
+            <div class="d-grid gap-2">
+              <button class="btn btn-success btn-lg" onclick="validarIdentificacaoSegura()">
+                Confirmar Código
+              </button>
+              <button class="btn btn-link btn-sm text-muted" onclick="voltarParaCpf()">
+                Voltar / Corrigir CPF
+              </button>
+            </div>
           </div>
-
-
+          
         </div>
-        <div class="d-grid" id="btn_buscar_identidade_div">
-          <button class="btn btn-primary btn-lg" id="btn_buscar_identidade" onclick="buscarIdentidade()" disabled>
-            Buscar CPF
-          </button>
-
+        
         </div>
-      </div>
     </div>
-  </div>
   </div>
 
   <div class="modal fade" id="modalConfirmacaoPedido" tabindex="-1" aria-hidden="true">
