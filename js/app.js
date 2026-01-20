@@ -1804,10 +1804,51 @@ function efetivarPagamentoFinal() {
 
 // --- LÓGICA DE LOGIN E MEUS PEDIDOS ---
 
+// ✅ Configuração da Sessão (10 minutos em milissegundos)
+const TEMPO_SESSAO_MS = 10 * 60 * 1000; 
+
+function salvarSessao(cpf) {
+    const dados = { cpf: cpf, validade: Date.now() + TEMPO_SESSAO_MS };
+    localStorage.setItem("sessao_cliente", JSON.stringify(dados));
+}
+
+function verificarSessaoAtiva() {
+    const sessao = JSON.parse(localStorage.getItem("sessao_cliente"));
+    if (sessao && sessao.cpf && Date.now() < sessao.validade) {
+        // Renova a sessão por mais 10 min a cada acesso
+        salvarSessao(sessao.cpf);
+        return sessao.cpf;
+    }
+    return null;
+}
+
+function logoutSessao() {
+    localStorage.removeItem("sessao_cliente");
+    location.reload();
+}
+
+// Intercepta o clique no botão "Meus Pedidos" da Navbar
+function cliqueMeusPedidos(e) {
+    const cpfAtivo = verificarSessaoAtiva();
+    if (cpfAtivo) {
+        // Se tem sessão válida, não abre o modal de login.
+        // Abre direto a lista de pedidos.
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Se o modal de login estiver aberto (por delay), fecha ele
+        const modalLogin = bootstrap.Modal.getInstance(document.getElementById('modalLogin'));
+        if (modalLogin) modalLogin.hide();
+
+        abrirModalMeusPedidos(cpfAtivo);
+    }
+    // Se não tem sessão, deixa o Bootstrap abrir o modalLogin normalmente
+}
+
+
 function iniciarLoginMeusPedidos() {
     var cpf = document.getElementById('login_cpf_acesso').value.replace(/\D/g, '');
     if (cpf.length !== 11) { 
-        // Troca alert por validação visual
         document.getElementById('login_cpf_acesso').classList.add('is-invalid');
         return; 
     }
@@ -1828,12 +1869,10 @@ function iniciarLoginMeusPedidos() {
         setTimeout(() => { btn.innerText = original; btn.disabled = false; }, 2000);
 
         if (dados.encontrado) {
-            // ✅ SUCESSO SEM ALERT: Apenas desliza a área de código
             document.getElementById('form-login-otp').style.opacity = '0.5';
             $("#area_codigo_login").slideDown();
             document.getElementById('login_otp_input').focus();
         } else {
-            // Se não achou, mostra aviso sutil no botão
             btn.classList.remove('btn-primary');
             btn.classList.add('btn-danger');
             btn.innerText = "CPF não encontrado";
@@ -1868,11 +1907,18 @@ function validarLoginMeusPedidos() {
         btn.innerHTML = '<i class="bi bi-unlock-fill me-2"></i> Acessar Painel';
 
         if (dados.encontrado) {
-            // ✅ SUCESSO: Fecha login e abre Pedidos
+            // ✅ SUCESSO: Salva a sessão e abre a lista
+            salvarSessao(cpf);
+
             bootstrap.Modal.getInstance(document.getElementById('modalLogin')).hide();
-            abrirModalMeusPedidos(cpf); // <-- CHAMA A NOVA FUNÇÃO
+            
+            // Limpa campos para próxima vez
+            document.getElementById('login_otp_input').value = "";
+            document.getElementById('area_codigo_login').style.display = "none";
+            document.getElementById('form-login-otp').style.opacity = "1";
+
+            abrirModalMeusPedidos(cpf); 
         } else {
-            // Erro visual no input de código
             var inputCod = document.getElementById('login_otp_input');
             inputCod.classList.add('is-invalid');
             inputCod.value = "";
@@ -1885,7 +1931,7 @@ function validarLoginMeusPedidos() {
     });
 }
 
-// --- NOVO: Renderizar Lista de Pedidos ---
+// --- Renderizar Lista de Pedidos ---
 function abrirModalMeusPedidos(cpf) {
     new bootstrap.Modal(document.getElementById('modalListaPedidos')).show();
     
@@ -1894,6 +1940,20 @@ function abrirModalMeusPedidos(cpf) {
     
     divLista.innerHTML = '';
     divLoading.style.display = 'block';
+
+    // Botão de Logout no modal (Opcional, mas útil)
+    const headerModal = document.querySelector('#modalListaPedidos .modal-header');
+    if (!document.getElementById('btn_logout_sessao')) {
+        const btnLogout = document.createElement('button');
+        btnLogout.id = 'btn_logout_sessao';
+        btnLogout.className = 'btn btn-sm btn-outline-light ms-auto me-2';
+        btnLogout.innerText = 'Sair';
+        btnLogout.onclick = function() {
+            logoutSessao();
+        };
+        // Insere antes do botão de fechar (X)
+        headerModal.insertBefore(btnLogout, headerModal.lastElementChild);
+    }
 
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
@@ -1912,14 +1972,14 @@ function abrirModalMeusPedidos(cpf) {
             return;
         }
 
-        // Renderiza cada pedido
         lista.forEach(p => {
-            // Formatação de Status (Cores)
+            // Status Badges
             let statusBadge = 'bg-secondary';
             let st = String(p.status).toLowerCase();
             if (st.includes('aprovado') || st.includes('pago')) statusBadge = 'bg-success';
             else if (st.includes('pendente') || st.includes('aguardando')) statusBadge = 'bg-warning text-dark';
             else if (st.includes('cancelado')) statusBadge = 'bg-danger';
+            else if (st.includes('enviado')) statusBadge = 'bg-primary'; // Azul para enviado
 
             // Formata Data
             let dataFormatada = p.data;
@@ -1928,12 +1988,22 @@ function abrirModalMeusPedidos(cpf) {
                if(!isNaN(d)) dataFormatada = d.toLocaleDateString('pt-BR');
             } catch(e){}
 
-            // Botão de Pagar (se pendente)
-            let btnPagar = '';
+            // Botão Pagar
+            let botoesAcao = '';
+            
             if ((st.includes('pendente') || st.includes('aguardando')) && p.link && p.link.startsWith('http')) {
-                btnPagar = `<a href="${p.link}" target="_blank" class="btn btn-sm btn-primary mt-2">
-                              <i class="bi bi-credit-card"></i> Pagar Agora
-                            </a>`;
+                botoesAcao += `<a href="${p.link}" target="_blank" class="btn btn-sm btn-success me-2 mb-2">
+                                  <i class="bi bi-credit-card"></i> Pagar Agora
+                               </a>`;
+            }
+
+            // ✅ NOVO: Botão Rastrear (Linkado com rastreio.html)
+            if (p.rastreio && p.rastreio.length > 5) {
+                botoesAcao += `<a href="rastreio.html?code=${p.rastreio}" target="_blank" class="btn btn-sm btn-primary mb-2">
+                                  <i class="bi bi-truck"></i> Rastrear Entrega
+                               </a>`;
+            } else if (st.includes('enviado')) {
+                 botoesAcao += `<span class="badge bg-light text-dark border mb-2">Rastreio em breve</span>`;
             }
 
             const card = document.createElement('div');
@@ -1946,12 +2016,15 @@ function abrirModalMeusPedidos(cpf) {
                 <div class="card-body">
                     <div class="small text-muted mb-2"><i class="bi bi-calendar"></i> ${dataFormatada}</div>
                     <p class="mb-2" style="white-space: pre-wrap;">${p.itens}</p>
-                    <div class="d-flex justify-content-between align-items-end border-top pt-2 mt-2">
-                        <div>
+                    
+                    <div class="d-flex flex-wrap justify-content-between align-items-end border-top pt-3 mt-2">
+                        <div class="mb-2">
                              <span class="small text-muted">Total:</span>
                              <div class="fw-bold text-success fs-5">R$ ${parseFloat(p.total).toFixed(2)}</div>
                         </div>
-                        ${btnPagar}
+                        <div class="text-end">
+                            ${botoesAcao}
+                        </div>
                     </div>
                 </div>
             `;
@@ -1963,3 +2036,98 @@ function abrirModalMeusPedidos(cpf) {
         divLista.innerHTML = '<div class="alert alert-danger">Erro ao carregar pedidos.</div>';
     });
 }
+
+
+// --- 8. INICIALIZAÇÃO ---
+document.addEventListener("DOMContentLoaded", function () {
+    carregar_config();
+    atualizar_carrinho();
+
+    // ✅ SESSÃO: Adiciona o listener no botão "Meus Pedidos"
+    const btnMeusPedidos = document.getElementById('btn_login');
+    if (btnMeusPedidos) {
+        btnMeusPedidos.addEventListener('click', cliqueMeusPedidos);
+    }
+
+    // ✅ BUSCA: filtra enquanto digita + Enter
+    const busca = document.getElementById('txt_search');
+    if (busca) {
+        busca.addEventListener('input', filtrarProdutos);
+        busca.addEventListener('search', () => filtrarProdutos()); 
+
+        busca.addEventListener('keydown', (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                filtrarProdutos();
+            }
+            // ✅ Quando abrir/fechar o offcanvas de filtros, esconde/mostra carrinho flutuante
+            const offEl = document.getElementById('offcanvasFiltros');
+            if (offEl) {
+                offEl.addEventListener('show.bs.offcanvas', () => {
+                    document.body.classList.add('filtros-abertos');
+                });
+
+                offEl.addEventListener('hidden.bs.offcanvas', () => {
+                    document.body.classList.remove('filtros-abertos');
+                });
+            }
+        });
+    }
+
+    // ✅ BUSCA MOBILE: filtra enquanto digita e quando limpa no "X"
+    const buscaMob = document.getElementById('txt_search_mobile');
+    if (buscaMob) {
+        buscaMob.addEventListener('input', filtrarProdutos);
+        buscaMob.addEventListener('search', () => filtrarProdutos());
+
+        buscaMob.addEventListener('keydown', (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                filtrarProdutos();
+            }
+        });
+    }
+
+    // ✅ BUSCA: garante que lupinha e teclado do celular executem a busca
+    const formBusca = document.getElementById('form_busca');
+    if (formBusca) {
+        formBusca.addEventListener('submit', (e) => {
+            e.preventDefault();
+            filtrarProdutos();
+            fechar_menu_mobile();
+        });
+    }
+
+    sincronizarBuscaEntreCampos();
+
+    // submit do form mobile
+    const formBuscaMob = document.getElementById('form_busca_mobile');
+    if (formBuscaMob) {
+        formBuscaMob.addEventListener('submit', (e) => {
+            e.preventDefault();
+            filtrarProdutos();
+        });
+    }
+
+    const modais = [
+        'modalProduto',
+        'modalCarrito',
+        'modalCheckout',
+        'modalLogin',
+        'modalUsuario',
+        'modalIdentificacao',
+        'modalConfirmacaoPedido'
+    ];
+
+    const btnFloat = document.getElementById('btn_carrinho_flutuante');
+
+    modais.forEach(id => {
+        var el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('show.bs.modal', () => { if (btnFloat) btnFloat.style.display = 'none'; });
+            el.addEventListener('hidden.bs.modal', () => {
+                if (!document.querySelector('.modal.show') && btnFloat) btnFloat.style.display = 'block';
+            });
+        }
+    });
+});
