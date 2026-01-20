@@ -1,6 +1,6 @@
 // --- CONTROLE DE VERSÃO E CACHE ---
 // mude o final desta string (ex: de v1 para v2)
-const VERSAO_SISTEMA = "2026-01-20_v2"; 
+const VERSAO_SISTEMA = "2026-01-20_v3"; 
 
 if (localStorage.getItem("versao_cache") !== VERSAO_SISTEMA) {
     localStorage.clear(); // Apaga tudo que está salvo (configurações antigas)
