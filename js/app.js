@@ -1,4 +1,13 @@
-// js/app.js - Versão com Frete Real (Soma Pesos), Edição e Máscara CEP
+// --- CONTROLE DE VERSÃO E CACHE ---
+// mude o final desta string (ex: de v1 para v2)
+const VERSAO_SISTEMA = "2026-01-20_v2"; 
+
+if (localStorage.getItem("versao_cache") !== VERSAO_SISTEMA) {
+    localStorage.clear(); // Apaga tudo que está salvo (configurações antigas)
+    localStorage.setItem("versao_cache", VERSAO_SISTEMA);
+    console.log("Sistema atualizado: Cache local limpo.");
+}
+// ----------------------------------
 
 
 // Variável global para guardar as configurações da planilha
