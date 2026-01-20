@@ -1473,6 +1473,7 @@ function buscarIdentidade() {
 
             if (dados && dados.encontrado) {
                 enderecoEntregaTemp = dados;
+                enderecoEntregaTemp.cpf = cpf; // ✅ garante CPF no checkout
                 // ✅ garante email/referencia no objeto temporário de entrega
                 enderecoEntregaTemp.email = String(dados.email ?? "").trim();
                 enderecoEntregaTemp.referencia = String(dados.referencia ?? "").trim();
@@ -1550,39 +1551,54 @@ function confirmarDadosExistentes(acao) {
   var mIdent = bootstrap.Modal.getInstance(document.getElementById('modalIdentificacao'));
   if (mIdent) mIdent.hide();
 
-  // ✅ sempre preenche o checkout (mesmo no "editar")
-  document.getElementById('checkout_cpf').value        = enderecoEntregaTemp.cpf || "";
-  document.getElementById('checkout_nome').value       = enderecoEntregaTemp.nome || "";
-  document.getElementById('checkout_sobrenome').value  = enderecoEntregaTemp.sobrenome || "";
+  // ✅ CPF: como o backend não devolve cpf, usa o que o usuário digitou / guardou
+  const cpfDigitado = (document.getElementById('cpf_identificacao')?.value || "").replace(/\D/g, "");
+  document.getElementById('checkout_cpf').value = enderecoEntregaTemp.cpf || cpfDigitado || "";
 
-  document.getElementById('checkout_telefone').value   = enderecoEntregaTemp.telefone || "";
-  document.getElementById('checkout_cep').value        = enderecoEntregaTemp.cep || "";
-  document.getElementById('checkout_rua').value        = enderecoEntregaTemp.rua || "";
-  document.getElementById('checkout_numero').value     = enderecoEntregaTemp.numero || "";
-  document.getElementById('checkout_bairro').value     = enderecoEntregaTemp.bairro || "";
-  document.getElementById('checkout_cidade').value     = enderecoEntregaTemp.cidade || "";
-  document.getElementById('checkout_uf').value         = enderecoEntregaTemp.uf || "";
-  document.getElementById('checkout_complemento').value= enderecoEntregaTemp.complemento || "";
+  document.getElementById('checkout_nome').value      = enderecoEntregaTemp.nome || "";
+  document.getElementById('checkout_sobrenome').value = enderecoEntregaTemp.sobrenome || "";
+  document.getElementById('checkout_telefone').value  = enderecoEntregaTemp.telefone || "";
 
-  // ✅ NOVO: referencia e email (se existirem no DOM)
-  var elRef = document.getElementById('checkout_referencia');
-  if (elRef) elRef.value = enderecoEntregaTemp.referencia || "";
-
+  // ✅ email
   var elEmail = document.getElementById('checkout_email');
   if (elEmail) elEmail.value = enderecoEntregaTemp.email || "";
 
-  // mostra checkout
+  // ✅ DETECTOR de “campos deslocados”
+  // Caso típico do seu print:
+  // bairro = "Prédio Cinza" (na prática referencia)
+  // cidade = "Cidade Nova"  (na prática bairro)
+  // uf = "Itaperuna"        (na prática cidade)
+  // e referencia vazio
+  const refRaw    = S(enderecoEntregaTemp.referencia);
+  const bairroRaw  = S(enderecoEntregaTemp.bairro);
+  const cidadeRaw  = S(enderecoEntregaTemp.cidade);
+  const ufRaw      = S(enderecoEntregaTemp.uf);
+
+  const pareceDeslocado = (!refRaw && bairroRaw && cidadeRaw && ufRaw && ufRaw.length > 2);
+
+  const referenciaFinal = pareceDeslocado ? bairroRaw : refRaw;
+  const bairroFinal     = pareceDeslocado ? cidadeRaw : bairroRaw;
+  const cidadeFinal     = pareceDeslocado ? ufRaw     : cidadeRaw;
+  const ufFinal         = pareceDeslocado ? (S(enderecoEntregaTemp.estado) || S(enderecoEntregaTemp.uf2) || "") : ufRaw;
+
+  // ✅ endereço
+  document.getElementById('checkout_cep').value         = enderecoEntregaTemp.cep || "";
+  document.getElementById('checkout_rua').value         = enderecoEntregaTemp.rua || "";
+  document.getElementById('checkout_numero').value      = enderecoEntregaTemp.numero || "";
+  document.getElementById('checkout_complemento').value = enderecoEntregaTemp.complemento || "";
+
+  document.getElementById('checkout_bairro').value = bairroFinal;
+  document.getElementById('checkout_cidade').value = cidadeFinal;
+  document.getElementById('checkout_uf').value     = ufFinal || ufRaw || "";
+
+  // ✅ referencia
+  var elRef = document.getElementById('checkout_referencia');
+  if (elRef) elRef.value = referenciaFinal;
+
   new bootstrap.Modal(document.getElementById('modalCheckout')).show();
 
-  // (opcional) foco diferente dependendo da ação
   setTimeout(() => {
-    if (acao === "editar") {
-      // deixa o usuário revisar dados
-      (document.getElementById('checkout_telefone') || document.getElementById('checkout_nome'))?.focus?.();
-    } else {
-      // "usar"
-      (document.getElementById('checkout_numero') || document.getElementById('checkout_telefone'))?.focus?.();
-    }
+    (document.getElementById('checkout_telefone') || document.getElementById('checkout_nome'))?.focus?.();
   }, 300);
 }
 
