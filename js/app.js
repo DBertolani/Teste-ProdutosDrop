@@ -158,6 +158,7 @@ function carregar_config() {
 }
 
 function aplicar_config() {
+    // --- O que já funciona (Mantido) ---
     if (CONFIG_LOJA.CorPrincipal) document.documentElement.style.setProperty('--cor-principal', CONFIG_LOJA.CorPrincipal);
 
     var titulo = CONFIG_LOJA.TituloAba || CONFIG_LOJA.NomeDoSite;
@@ -178,6 +179,51 @@ function aplicar_config() {
             var src = CONFIG_LOJA.LogoDoSite.replace('/view', '/preview');
             logo.innerHTML = `<img src="${src}" alt="${CONFIG_LOJA.NomeDoSite}" style="max-height:40px; margin-right:10px;">`;
         } else if (CONFIG_LOJA.NomeDoSite) { logo.innerText = CONFIG_LOJA.NomeDoSite; }
+    }
+
+    // --- ✅ NOVAS FUNCIONALIDADES (Adicionadas ao final) ---
+
+    // 1. Favicon Dinâmico
+    if (CONFIG_LOJA.Favicon) {
+        let link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+        link.type = 'image/x-icon';
+        link.rel = 'shortcut icon';
+        link.href = CONFIG_LOJA.Favicon;
+        document.getElementsByTagName('head')[0].appendChild(link);
+    }
+
+    // 2. Botão de WhatsApp Flutuante
+    if (CONFIG_LOJA.WhatsappFlutuante === "Sim" && CONFIG_LOJA.NumeroWhatsapp) {
+        // Evita criar o botão duplicado se a função rodar duas vezes
+        if (!document.getElementById('wa_flutuante')) {
+            const waBtn = document.createElement('a');
+            waBtn.id = 'wa_flutuante';
+            // Remove qualquer caractere que não seja número do telefone
+            const foneLimpo = CONFIG_LOJA.NumeroWhatsapp.replace(/\D/g, '');
+            waBtn.href = `https://wa.me/${foneLimpo}`;
+            waBtn.target = "_blank";
+            waBtn.innerHTML = '<i class="bi bi-whatsapp"></i>';
+            
+            // Estilização do botão
+            waBtn.style.position = "fixed";
+            waBtn.style.width = "60px";
+            waBtn.style.height = "60px";
+            waBtn.style.bottom = "100px";
+            waBtn.style.right = "20px";
+            waBtn.style.backgroundColor = "#25d366";
+            waBtn.style.color = "#FFF";
+            waBtn.style.borderRadius = "50px";
+            waBtn.style.textAlign = "center";
+            waBtn.style.fontSize = "30px";
+            waBtn.style.boxShadow = "1px 1px 5px rgba(0,0,0,0.3)";
+            waBtn.style.zIndex = "9999";
+            waBtn.style.display = "flex";
+            waBtn.style.alignItems = "center";
+            waBtn.style.justifyContent = "center";
+            waBtn.style.textDecoration = "none";
+            
+            document.body.appendChild(waBtn);
+        }
     }
 }
 
@@ -1789,20 +1835,52 @@ function efetivarPagamentoFinal() {
         btn.disabled = true;
     }
 
+    // ✅ NOVO: Desvio para WhatsApp (se configurado na planilha)
+    if (CONFIG_LOJA.TipoCheckout === "WhatsApp") {
+        let texto = `*Novo Pedido - ${CONFIG_LOJA.NomeDoSite}*\n\n`;
+        texto += `*Cliente:* ${cliente.nome} ${cliente.sobrenome}\n`;
+        texto += `*Telefone:* ${cliente.whatsapp}\n`;
+        texto += `*Endereço:* ${cliente.rua}, ${cliente.numero} - ${cliente.bairro}, ${cliente.cidade}/${cliente.uf}\n\n`;
+        
+        texto += `*Itens:*\n`;
+        let totalProdutos = 0;
+        items.forEach(it => {
+            texto += `- ${it.quantity}x ${it.title} (${formatBRL(it.unit_price)})\n`;
+            totalProdutos += (it.unit_price * it.quantity);
+        });
 
+        const valorFrete = parseFloat(logisticaInfo.valor) || 0;
+        const totalFinal = totalProdutos + valorFrete;
+
+        texto += `\n*Produtos:* ${formatBRL(totalProdutos)}`;
+        texto += `\n*Frete:* ${formatBRL(valorFrete)}`;
+        texto += `\n*Total Final: ${formatBRL(totalFinal)}*`;
+
+        const fone = CONFIG_LOJA.NumeroWhatsapp.replace(/\D/g, '');
+        const linkWa = `https://wa.me/${fone}?text=${encodeURIComponent(texto)}`;
+        
+        if (btn) {
+            btn.innerText = "Concluído!";
+        }
+        
+        window.open(linkWa, '_blank');
+        return; // Interrompe aqui, não chama o Mercado Pago
+    }
+
+    // --- Fluxo Original Mercado Pago (Mantido) ---
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
         body: JSON.stringify({ cliente, items, logistica: logisticaInfo })
     })
-        .then(r => r.text())
-        .then(link => { window.location.href = link; })
-        .catch(e => {
-            alert("Erro ao processar.");
-            if (btn) {
-                btn.innerText = "Tentar Novamente";
-                btn.disabled = false;
-            }
-        });
+    .then(r => r.text())
+    .then(link => { window.location.href = link; })
+    .catch(e => {
+        alert("Erro ao processar.");
+        if (btn) {
+            btn.innerText = "Tentar Novamente";
+            btn.disabled = false;
+        }
+    });
 }
 
 // --- LÓGICA DE LOGIN E MEUS PEDIDOS ---
