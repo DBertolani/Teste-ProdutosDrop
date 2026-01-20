@@ -133,9 +133,9 @@ function normalizarTexto(s) {
 function filtrarProdutos() {
     const termo = normalizarTexto(obterTermoBusca());
 
-    if (!Array.isArray(ALL_PRODUTOS) || ALL_PRODUTOS.length === 0) {
-        ALL_PRODUTOS = JSON.parse(localStorage.getItem('calçados')) || [];
-    }
+if (!Array.isArray(ALL_PRODUTOS) || ALL_PRODUTOS.length === 0) {
+    ALL_PRODUTOS = lsGetJSON('calçados', []);
+}
 
     const filtrados = ALL_PRODUTOS.filter(p => {
         const nome = normalizarTexto(p.Produto);
@@ -221,9 +221,9 @@ function carregar_config() {
             aplicar_config();
             carregar_produtos();
         })
-        .catch(e => {
-            console.log("Erro config", e);
-            carregar_produtos();
+            .catch(e => {
+            console.log("Erro ao carregar config, chamando produtos assim mesmo:", e);
+            carregar_produtos(); // CHAMADA DE EMERGÊNCIA: Garante que os produtos carreguem mesmo se a config falhar
         });
 }
 
@@ -430,9 +430,10 @@ function atualizarBadgeFiltros() {
 
 // --- 3. PRODUTOS E LOADING ---
 function carregar_produtos() {
-    const cache = JSON.parse(localStorage.getItem('calçados')) || [];
-    if (cache && cache.length) {
-        // mostra cache imediatamente
+    // Tenta pegar o cache com segurança
+    const cache = lsGetJSON('calçados', []);
+    
+    if (cache && cache.length > 0) {
         ALL_PRODUTOS = cache;
         carregar_categorias(cache);
         renderizarFiltrosAtributos(cache);
@@ -442,23 +443,25 @@ function carregar_produtos() {
         mostrar_skeleton(true);
     }
 
-    // atualiza em segundo plano
+    // Busca na planilha
     var url = CONFIG.SCRIPT_URL + "?rota=produtos&nocache=" + new Date().getTime();
     fetch(url)
         .then(r => r.json())
         .then(data => {
             mostrar_skeleton(false);
-            if (Array.isArray(data)) {
-                localStorage.setItem("calçados", JSON.stringify(data));
+            if (Array.isArray(data) && data.length > 0) {
+                lsSetJSON("calçados", data); // Usa o helper seguro que você criou
                 ALL_PRODUTOS = data;
                 carregar_categorias(data);
                 renderizarFiltrosAtributos(data);
                 mostrar_produtos(data);
+            } else {
+                console.warn("Planilha retornou vazio ou erro:", data);
             }
         })
-        .catch(() => {
+        .catch(err => {
             mostrar_skeleton(false);
-            // se falhar, fica com o cache mesmo
+            console.error("Erro ao buscar produtos da planilha:", err);
         });
 }
 
