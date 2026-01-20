@@ -158,24 +158,27 @@ function carregar_config() {
 }
 
 function aplicar_config() {
-    // --- 0. Função Auxiliar de Conversão (Privada para não poluir o escopo global) ---
+    // --- 0. Função Auxiliar de Conversão Robusta ---
     const obterLinkDiretoDrive = (url) => {
-        if (!url || typeof url !== 'string') return "";
+        if (!url || typeof url !== 'string' || url.trim() === "") return "";
         if (!url.includes('drive.google.com')) return url;
         
-        // Remove sufixos comuns e tenta extrair o ID via regex
-        let limpa = url.replace('/view?usp=sharing', '').replace('/view', '').replace('/preview', '');
-        let match = limpa.match(/\/d\/([^\/]+)|id=([^\&]+)/);
-        let id = match ? (match[1] || match[2]) : null;
+        // Extrai o ID do arquivo (funciona com link de compartilhamento, view, preview ou uc)
+        const regex = /\/d\/([^\/]+)|id=([^\&]+)/;
+        const match = url.match(regex);
+        const id = match ? (match[1] || match[2]) : null;
         
-        return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
+        // Retorna o link de visualização direta (Thumbnail de alta qualidade)
+        // Isso resolve o problema da logo parar de aparecer
+        return id ? `https://drive.google.com/thumbnail?authuser=0&sz=w800&id=${id}` : url;
     };
 
-    // --- 1. O que já funciona (Mantido e Otimizado com a nova função) ---
+    // 1. Cor Principal
     if (CONFIG_LOJA.CorPrincipal) {
         document.documentElement.style.setProperty('--cor-principal', CONFIG_LOJA.CorPrincipal);
     }
 
+    // 2. Títulos e SEO
     var titulo = CONFIG_LOJA.TituloAba || CONFIG_LOJA.NomeDoSite;
     if (titulo) {
         document.title = titulo;
@@ -188,36 +191,32 @@ function aplicar_config() {
         if (metaDesc) metaDesc.setAttribute("content", CONFIG_LOJA.DescricaoSEO);
     }
 
+    // 3. Logo do Site (Restaurado e Melhorado)
     var logo = document.getElementById('logo_site');
     if (logo) {
         if (CONFIG_LOJA.LogoDoSite && CONFIG_LOJA.LogoDoSite.trim() !== "") {
-            // ✅ Agora usa a função inteligente de conversão
             var src = obterLinkDiretoDrive(CONFIG_LOJA.LogoDoSite);
-            logo.innerHTML = `<img src="${src}" alt="${CONFIG_LOJA.NomeDoSite}" style="max-height:40px; margin-right:10px;">`;
+            logo.innerHTML = `<img src="${src}" alt="${CONFIG_LOJA.NomeDoSite}" style="max-height:40px; margin-right:10px; width: auto; display: inline-block;">`;
         } else if (CONFIG_LOJA.NomeDoSite) { 
             logo.innerText = CONFIG_LOJA.NomeDoSite; 
         }
     }
 
-    // --- ✅ NOVAS FUNCIONALIDADES (Adicionadas ao final) ---
-
-    // 1. Favicon Dinâmico (Com conversão automática inteligente)
+    // 4. Favicon Dinâmico
     if (CONFIG_LOJA.Favicon) {
         let link = document.querySelector("link[rel*='icon']") || document.createElement('link');
         link.type = 'image/x-icon';
         link.rel = 'shortcut icon';
-        // ✅ Usa a mesma função inteligente do logo
         link.href = obterLinkDiretoDrive(CONFIG_LOJA.Favicon);
         document.getElementsByTagName('head')[0].appendChild(link);
     }
 
-// 2. Botão de WhatsApp Flutuante (Lado Esquerdo e Menor)
+    // 5. Botão de WhatsApp Flutuante (Esquerda e Protegido contra erros)
     if (CONFIG_LOJA.WhatsappFlutuante === "Sim" && CONFIG_LOJA.NumeroWhatsapp) {
         if (!document.getElementById('wa_flutuante')) {
             const waBtn = document.createElement('a');
             waBtn.id = 'wa_flutuante';
             
-            // ✅ CORREÇÃO AQUI: Forçamos o número a ser uma String antes do replace
             const foneRaw = String(CONFIG_LOJA.NumeroWhatsapp || "");
             const foneLimpo = foneRaw.replace(/\D/g, '');
             
@@ -225,24 +224,25 @@ function aplicar_config() {
             waBtn.target = "_blank";
             waBtn.innerHTML = '<i class="bi bi-whatsapp"></i>';
             
-            // Estilos (Mantidos conforme você pediu)
-            waBtn.style.position = "fixed";
-            waBtn.style.width = "50px"; 
-            waBtn.style.height = "50px";
-            waBtn.style.bottom = "20px";
-            waBtn.style.left = "20px"; 
-            waBtn.style.backgroundColor = "#25d366";
-            waBtn.style.color = "#FFF";
-            waBtn.style.border = "none";
-            waBtn.style.borderRadius = "50px";
-            waBtn.style.textAlign = "center";
-            waBtn.style.fontSize = "26px";
-            waBtn.style.boxShadow = "0px 4px 10px rgba(0,0,0,0.2)";
-            waBtn.style.zIndex = "9999";
-            waBtn.style.display = "flex";
-            waBtn.style.alignItems = "center";
-            waBtn.style.justifyContent = "center";
-            waBtn.style.textDecoration = "none";
+            // Estilos fixos para garantir que apareça
+            waBtn.style.cssText = `
+                position: fixed;
+                width: 50px;
+                height: 50px;
+                bottom: 20px;
+                left: 20px;
+                background-color: #25d366;
+                color: #FFF;
+                border-radius: 50px;
+                text-align: center;
+                font-size: 26px;
+                box-shadow: 0px 4px 10px rgba(0,0,0,0.2);
+                z-index: 9999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-decoration: none;
+            `;
             
             document.body.appendChild(waBtn);
         }
