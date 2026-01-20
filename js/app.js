@@ -1,16 +1,23 @@
-// --- CONTROLE DE VERSÃO E CACHE ---
-const VERSAO_SISTEMA = "2026-01-20_v4"; // Mudei para v4 para forçar nova leitura
+// --- CONTROLE DE VERSÃO E CACHE (MODO SEGURO) ---
+const VERSAO_SISTEMA = "2026-01-20_v5"; 
 
-try {
+function podeUsarStorage() {
+    try {
+        localStorage.setItem('teste', '1');
+        localStorage.removeItem('teste');
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+if (podeUsarStorage()) {
     if (localStorage.getItem("versao_cache") !== VERSAO_SISTEMA) {
-        localStorage.clear(); 
+        localStorage.clear();
         localStorage.setItem("versao_cache", VERSAO_SISTEMA);
         console.log("Sistema atualizado: Cache local limpo.");
     }
-} catch (e) {
-    console.warn("Acesso ao storage bloqueado pelo navegador. Operando em modo limitado.", e);
 }
-// ----------------------------------
 
 
 // Variável global para guardar as configurações da planilha
@@ -138,14 +145,15 @@ function mascaraCep(t) {
 function carregar_config() {
     var url = CONFIG.SCRIPT_URL + "?rota=config&nocache=" + new Date().getTime();
 
-    // Primeiro: Tenta carregar do Cache para ser instantâneo
-    var configCache = JSON.parse(localStorage.getItem('loja_config'));
-    if (configCache) {
-        CONFIG_LOJA = configCache;
-        aplicar_config();
+    // Tenta carregar do Cache APENAS se o storage estiver liberado
+    if (podeUsarStorage()) {
+        var configCache = JSON.parse(localStorage.getItem('loja_config'));
+        if (configCache) {
+            CONFIG_LOJA = configCache;
+            aplicar_config();
+        }
     }
 
-    // Segundo: Busca na planilha e ATUALIZA o cache e a tela
     fetch(url)
         .then(res => res.json())
         .then(data => {
@@ -155,16 +163,17 @@ function carregar_config() {
                 data.forEach(l => { if (l.Chave && l.Valor) config[l.Chave] = l.Valor; });
             } else { config = data; }
 
-            localStorage.setItem("loja_config", JSON.stringify(config));
+            // Salva no cache apenas se permitido
+            if (podeUsarStorage()) {
+                localStorage.setItem("loja_config", JSON.stringify(config));
+            }
+            
             CONFIG_LOJA = config;
             aplicar_config();
-
-            // DISPARO OBRIGATÓRIO: Carrega os produtos após ter a configuração
             carregar_produtos();
         })
         .catch(e => {
             console.log("Erro config", e);
-            // Se a internet falhar, tenta carregar produtos mesmo assim
             carregar_produtos();
         });
 }
