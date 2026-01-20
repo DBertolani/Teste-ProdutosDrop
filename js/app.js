@@ -1,23 +1,30 @@
 // --- CONTROLE DE VERSÃO E CACHE (MODO SEGURO) ---
 const VERSAO_SISTEMA = "2026-01-20_v5"; 
 
+// --- NOVO MODO DE SEGURANÇA MÁXIMA ---
 function podeUsarStorage() {
     try {
-        localStorage.setItem('teste', '1');
-        localStorage.removeItem('teste');
+        // Verifica se a propriedade existe e se não é bloqueada
+        if (typeof localStorage === 'undefined' || localStorage === null) return false;
+        localStorage.setItem('teste_storage', '1');
+        localStorage.removeItem('teste_storage');
         return true;
     } catch (e) {
+        // Se cair aqui, o Tracking Prevention bloqueou
+        console.warn("Acesso ao Storage bloqueado pelo navegador.");
         return false;
     }
 }
 
-if (podeUsarStorage()) {
-    if (localStorage.getItem("versao_cache") !== VERSAO_SISTEMA) {
-        localStorage.clear();
-        localStorage.setItem("versao_cache", VERSAO_SISTEMA);
-        console.log("Sistema atualizado: Cache local limpo.");
+// Substitua seu bloco de limpeza de cache por este:
+try {
+    if (podeUsarStorage()) {
+        if (localStorage.getItem("versao_cache") !== VERSAO_SISTEMA) {
+            localStorage.clear();
+            localStorage.setItem("versao_cache", VERSAO_SISTEMA);
+        }
     }
-}
+} catch (e) { }
 
 
 //----
@@ -430,8 +437,11 @@ function atualizarBadgeFiltros() {
 
 // --- 3. PRODUTOS E LOADING ---
 function carregar_produtos() {
-    // Tenta pegar o cache com segurança
-    const cache = lsGetJSON('calçados', []);
+    // 1. Tenta pegar o cache SOMENTE se puder usar storage
+    let cache = [];
+    if (podeUsarStorage()) {
+        cache = lsGetJSON('calçados', []);
+    }
     
     if (cache && cache.length > 0) {
         ALL_PRODUTOS = cache;
@@ -440,28 +450,32 @@ function carregar_produtos() {
         mostrar_produtos(cache);
         mostrar_skeleton(false);
     } else {
+        // Se não tem cache ou storage bloqueado, mostra o loading e vai pra rede
         mostrar_skeleton(true);
     }
 
-    // Busca na planilha
     var url = CONFIG.SCRIPT_URL + "?rota=produtos&nocache=" + new Date().getTime();
+    
     fetch(url)
         .then(r => r.json())
         .then(data => {
             mostrar_skeleton(false);
             if (Array.isArray(data) && data.length > 0) {
-                lsSetJSON("calçados", data); // Usa o helper seguro que você criou
+                // Tenta salvar no cache, mas se falhar não trava o site
+                if (podeUsarStorage()) {
+                    lsSetJSON("calçados", data);
+                }
                 ALL_PRODUTOS = data;
                 carregar_categorias(data);
                 renderizarFiltrosAtributos(data);
                 mostrar_produtos(data);
-            } else {
-                console.warn("Planilha retornou vazio ou erro:", data);
             }
         })
         .catch(err => {
             mostrar_skeleton(false);
-            console.error("Erro ao buscar produtos da planilha:", err);
+            console.error("Erro na Planilha:", err);
+            // Se der erro de rede, tenta mostrar o que tem na memória pelo menos
+            if(ALL_PRODUTOS.length > 0) mostrar_produtos(ALL_PRODUTOS);
         });
 }
 
