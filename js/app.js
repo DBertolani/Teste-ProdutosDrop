@@ -183,12 +183,21 @@ function aplicar_config() {
 
     // --- ✅ NOVAS FUNCIONALIDADES (Adicionadas ao final) ---
 
-    // 1. Favicon Dinâmico
+  
+// 1. Favicon Dinâmico (Com conversão automática do link do Drive)
     if (CONFIG_LOJA.Favicon) {
         let link = document.querySelector("link[rel*='icon']") || document.createElement('link');
         link.type = 'image/x-icon';
         link.rel = 'shortcut icon';
-        link.href = CONFIG_LOJA.Favicon;
+        
+        // Converte link do Drive para link direto se necessário
+        let faviconUrl = CONFIG_LOJA.Favicon.replace('/view?usp=sharing', '').replace('/view', '');
+        if (faviconUrl.includes('drive.google.com')) {
+            let id = faviconUrl.split('/d/')[1] || faviconUrl.split('id=')[1];
+            faviconUrl = `https://drive.google.com/uc?export=view&id=${id}`;
+        }
+        
+        link.href = faviconUrl;
         document.getElementsByTagName('head')[0].appendChild(link);
     }
 
