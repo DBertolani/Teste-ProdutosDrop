@@ -1125,9 +1125,11 @@ $(document).on('blur', '#checkout_cpf', function () {
                         document.getElementById('checkout_numero').value = dados.numero || "";
                         document.getElementById('checkout_bairro').value = dados.bairro || "";
                         document.getElementById('checkout_cidade').value = dados.cidade || "";
-                      document.getElementById('checkout_uf').value = enderecoEntregaTemp.estado || enderecoEntregaTemp.uf || "";
-
+                        document.getElementById('checkout_uf').value = dados.uf || dados.estado || "";
+                 
                         document.getElementById('checkout_complemento').value = dados.complemento || "";
+                        document.getElementById('checkout_referencia').value = dados.referencia || "";
+
 
                         // Validação Crítica de CEP
                         if (dados.cep && dados.cep.replace(/\D/g, '') !== document.getElementById('carrinho_cep').value.replace(/\D/g, '')) {
