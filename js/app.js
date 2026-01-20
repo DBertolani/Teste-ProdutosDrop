@@ -220,9 +220,13 @@ function aplicar_config() {
         document.getElementsByTagName('head')[0].appendChild(link);
     }
 
-    // 5. Botão de WhatsApp Flutuante (Esquerda e Protegido contra erros)
+// 5. Botão de WhatsApp Flutuante (Esquerda e Protegido contra erros)
+    // Primeiro, verificamos se o botão já existe na tela
+    const btnExistente = document.getElementById('wa_flutuante');
+
     if (CONFIG_LOJA.WhatsappFlutuante === "Sim" && CONFIG_LOJA.NumeroWhatsapp) {
-        if (!document.getElementById('wa_flutuante')) {
+        // Se a config é SIM e o botão ainda NÃO existe, nós criamos ele
+        if (!btnExistente) {
             const waBtn = document.createElement('a');
             waBtn.id = 'wa_flutuante';
             
@@ -233,7 +237,6 @@ function aplicar_config() {
             waBtn.target = "_blank";
             waBtn.innerHTML = '<i class="bi bi-whatsapp"></i>';
             
-            // Estilos fixos para garantir que apareça
             waBtn.style.cssText = `
                 position: fixed;
                 width: 50px;
@@ -255,8 +258,16 @@ function aplicar_config() {
             
             document.body.appendChild(waBtn);
         }
+    } else {
+        // ✅ ESTA É A PARTE NOVA:
+        // Se na planilha estiver "Não", ou se o número estiver vazio,
+        // e o botão existir na tela, nós removemos ele.
+        if (btnExistente) {
+            btnExistente.remove();
+        }
     }
-}
+} // Fechamento da função aplicar_config
+
 // --- 2. MENU E CATEGORIAS ---
 function carregar_categorias(produtos) {
     const menu = document.getElementById('categoria_menu');
