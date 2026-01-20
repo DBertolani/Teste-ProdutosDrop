@@ -532,15 +532,31 @@ footer.site-footer a{
 <script src="js/config.js?v=20260113-1" defer></script>
 
 <script>
-  // Solução Automática: Gera um número baseado no tempo para o app.js
-  (function() {
-    var versao = new Date().getTime(); 
-    var script = document.createElement('script');
-    script.src = 'js/app.js?v=' + versao;
-    script.defer = true;
-    document.head.appendChild(script);
+  (function () {
+    function carregarApp() {
+      var versao = Date.now();
+      var s = document.createElement('script');
+      s.src = 'js/app.js?v=' + versao;
+      // não use defer aqui; vamos controlar o momento
+      s.onload = function(){ /* ok */ };
+      s.onerror = function(){ console.error("Falha ao carregar app.js"); };
+      document.body.appendChild(s);
+    }
+
+    // espera o jQuery existir (porque seu app usa $)
+    function esperarJquery(tentativas) {
+      if (window.jQuery && window.$) return carregarApp();
+      if ((tentativas || 0) > 80) { // ~4s
+        console.error("jQuery não carregou a tempo. Abortando app.js.");
+        return;
+      }
+      setTimeout(() => esperarJquery((tentativas || 0) + 1), 50);
+    }
+
+    esperarJquery(0);
   })();
 </script>
+
 
 
 <div class="modal fade" id="modalIdentificacao" tabindex="-1" aria-hidden="true">
