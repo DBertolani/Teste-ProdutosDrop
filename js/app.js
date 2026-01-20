@@ -1158,7 +1158,9 @@ function iniciarPagamentoFinal(ev) {
           sobrenome: sobrenomeFinal,
           cpf: (document.getElementById('checkout_cpf')?.value || "").trim(),
           telefone: (document.getElementById('checkout_telefone')?.value || "").trim(),
-          email: (document.getElementById('checkout_email')?.value || dadosClienteTemp.email || "").trim(),
+            
+        // ✅ NOVO
+          email: document.getElementById('checkout_email')?.value || (enderecoEntregaTemp.email || ""),
           cep: (document.getElementById('checkout_cep')?.value || "").trim(),
           rua: (document.getElementById('checkout_rua')?.value || "").trim(),
           numero: (document.getElementById('checkout_numero')?.value || "").trim(),
@@ -1166,7 +1168,8 @@ function iniciarPagamentoFinal(ev) {
           cidade: (document.getElementById('checkout_cidade')?.value || "").trim(),
           uf: (document.getElementById('checkout_uf')?.value || "").trim(),
           complemento: (document.getElementById('checkout_complemento')?.value || "").trim(),
-          referencia: (document.getElementById('checkout_referencia')?.value || "").trim() // ✅ NOVO
+          // ✅ NOVO
+          referencia: document.getElementById('checkout_referencia')?.value || ""
         };
 
 
@@ -1470,10 +1473,16 @@ function buscarIdentidade() {
 
             if (dados && dados.encontrado) {
                 enderecoEntregaTemp = dados;
+                // ✅ garante email/referencia no objeto temporário de entrega
+                enderecoEntregaTemp.email = String(dados.email ?? "").trim();
+                enderecoEntregaTemp.referencia = String(dados.referencia ?? "").trim();
+
 
                 dadosClienteTemp.nome = String(dados.nome ?? "").trim();
                 dadosClienteTemp.sobrenome = String(dados.sobrenome ?? "").trim();
                   dadosClienteTemp.email = String(dados.email ?? "").trim(); // ✅ NOVO
+                    dadosClienteTemp.referencia = String(dados.referencia ?? "").trim(); // ✅ NOVO
+
 
 
                 const tel = String(dados.telefone ?? "").trim();
@@ -1536,38 +1545,45 @@ function buscarCepNoCheckout() {
 }
 
 // 4. Ajuste na função de confirmar para preencher o novo campo de CEP
-function confirmarDadosExistentes(modo) {
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalIdentificacao')).hide();
+function confirmarDadosExistentes(acao) {
+  // fecha modal de identificação
+  var mIdent = bootstrap.Modal.getInstance(document.getElementById('modalIdentificacao'));
+  if (mIdent) mIdent.hide();
 
-    document.getElementById('checkout_cpf').value = document.getElementById('cpf_identificacao').value;
+  // ✅ sempre preenche o checkout (mesmo no "editar")
+  document.getElementById('checkout_cpf').value        = enderecoEntregaTemp.cpf || "";
+  document.getElementById('checkout_nome').value       = enderecoEntregaTemp.nome || "";
+  document.getElementById('checkout_sobrenome').value  = enderecoEntregaTemp.sobrenome || "";
 
-    // nome/sobrenome
-    document.getElementById('checkout_nome').value = dadosClienteTemp.nome || "";
-    document.getElementById('checkout_sobrenome').value = dadosClienteTemp.sobrenome || "";
+  document.getElementById('checkout_telefone').value   = enderecoEntregaTemp.telefone || "";
+  document.getElementById('checkout_cep').value        = enderecoEntregaTemp.cep || "";
+  document.getElementById('checkout_rua').value        = enderecoEntregaTemp.rua || "";
+  document.getElementById('checkout_numero').value     = enderecoEntregaTemp.numero || "";
+  document.getElementById('checkout_bairro').value     = enderecoEntregaTemp.bairro || "";
+  document.getElementById('checkout_cidade').value     = enderecoEntregaTemp.cidade || "";
+  document.getElementById('checkout_uf').value         = enderecoEntregaTemp.uf || "";
+  document.getElementById('checkout_complemento').value= enderecoEntregaTemp.complemento || "";
 
-    // endereço
-    document.getElementById('checkout_cep').value = enderecoEntregaTemp.cep || "";
-    document.getElementById('checkout_telefone').value = enderecoEntregaTemp.telefone || "";
-    document.getElementById('checkout_rua').value = enderecoEntregaTemp.rua || "";
-    document.getElementById('checkout_numero').value = enderecoEntregaTemp.numero || "";
-    document.getElementById('checkout_bairro').value = enderecoEntregaTemp.bairro || "";
-    document.getElementById('checkout_cidade').value = enderecoEntregaTemp.cidade || "";
-    document.getElementById('checkout_uf').value = enderecoEntregaTemp.uf || "";
-    document.getElementById('checkout_complemento').value = enderecoEntregaTemp.complemento || "";
-    const refEl = document.getElementById('checkout_referencia');
-    if (refEl) refEl.value = enderecoEntregaTemp.referencia || "";
+  // ✅ NOVO: referencia e email (se existirem no DOM)
+  var elRef = document.getElementById('checkout_referencia');
+  if (elRef) elRef.value = enderecoEntregaTemp.referencia || "";
 
+  var elEmail = document.getElementById('checkout_email');
+  if (elEmail) elEmail.value = enderecoEntregaTemp.email || "";
 
+  // mostra checkout
+  new bootstrap.Modal(document.getElementById('modalCheckout')).show();
 
-
-    // Se o modo for "usar", você pode deixar como está e só seguir.
-    // Se for "editar", foca no primeiro campo editável pra incentivar atualização.
-    new bootstrap.Modal(document.getElementById('modalCheckout')).show();
-    validarCepsIdenticos();
-
-    if (modo === 'editar') {
-        setTimeout(() => document.getElementById('checkout_telefone').focus(), 400);
+  // (opcional) foco diferente dependendo da ação
+  setTimeout(() => {
+    if (acao === "editar") {
+      // deixa o usuário revisar dados
+      (document.getElementById('checkout_telefone') || document.getElementById('checkout_nome'))?.focus?.();
+    } else {
+      // "usar"
+      (document.getElementById('checkout_numero') || document.getElementById('checkout_telefone'))?.focus?.();
     }
+  }, 300);
 }
 
 
