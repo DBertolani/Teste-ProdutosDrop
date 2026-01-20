@@ -20,6 +20,55 @@ if (podeUsarStorage()) {
 }
 
 
+//----
+
+// --- STORAGE SAFE HELPERS (blindagem total p/ Edge Tracking Prevention) ---
+function lsGetRaw(key) {
+  try {
+    if (!podeUsarStorage()) return null;
+    return localStorage.getItem(key);
+  } catch (e) {
+    return null;
+  }
+}
+
+function lsSetRaw(key, val) {
+  try {
+    if (!podeUsarStorage()) return false;
+    localStorage.setItem(key, val);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function lsRemove(key) {
+  try {
+    if (!podeUsarStorage()) return;
+    localStorage.removeItem(key);
+  } catch (e) {}
+}
+
+function lsGetJSON(key, fallback) {
+  const raw = lsGetRaw(key);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    return fallback;
+  }
+}
+
+function lsSetJSON(key, obj) {
+  try {
+    return lsSetRaw(key, JSON.stringify(obj));
+  } catch (e) {
+    return false;
+  }
+}
+
+
+
 // Variável global para guardar as configurações da planilha
 var CONFIG_LOJA = {};
 var dadosClienteTemp = {};
