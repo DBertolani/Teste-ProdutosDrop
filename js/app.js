@@ -1401,131 +1401,206 @@ $(document).on('change', '#checkout_cep', function () {
 });
 
 
-// --- NOVO FLUXO DE IDENTIFICAÇÃO ---
+// --- NOVO FLUXO DE IDENTIFICAÇÃO (SEGURANÇA OTP) ---
 
 function abrirIdentificacao() {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCarrito')).hide();
 
-    // reset básico
-    $('#cpf_identificacao').val('');
-    $('#resultado_busca_identidade').hide();
-    $('#btn_buscar_identidade_div').show();
+    // Reset visual para o estado inicial
+    document.getElementById('passo_cpf').style.display = 'block';
+    document.getElementById('passo_codigo').style.display = 'none';
+    
+    // Limpa campos
+    document.getElementById('cpf_identificacao').value = '';
+    document.getElementById('input_codigo_otp').value = '';
+    
+    // Remove qualquer resultado de sucesso anterior se houver
+    const containerSucesso = document.getElementById('container_sucesso_identificacao');
+    if (containerSucesso) containerSucesso.remove();
+    
+    // Mostra o corpo do modal novamente caso tenha sido ocultado
+    document.querySelector('#modalIdentificacao .modal-body').style.display = 'block';
 
-    // LGPD controla botão
-    $('#check_lgpd').prop('checked', false).trigger('change');
+    // LGPD
+    document.getElementById('check_lgpd').checked = false;
+    document.getElementById('btn_buscar_identidade').disabled = true;
 
     new bootstrap.Modal(document.getElementById('modalIdentificacao')).show();
 }
 
-
-
-
-
-// 1. Abertura do Checkout Manual (Novo Destinatário)
-function irParaCheckoutManual(cpfInformado) {
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalIdentificacao')).hide();
-    document.getElementById('form-checkout').reset(); // Limpa tudo
-
-    // ✅ IMPORTANTE: limpa nome/sobrenome anteriores
-    dadosClienteTemp = {};
-
-
-    document.getElementById('checkout_cpf').value = cpfInformado || document.getElementById('cpf_identificacao').value;
-
-    // Deixa os campos vazios para o novo cadastro
-    new bootstrap.Modal(document.getElementById('modalCheckout')).show();
-}
-
-
-// --- AJUSTES DE FLUXO E LIMPEZA ---
-
-// 1. Limpa a busca se o usuário apagar o CPF
-$(document).on('input', '#cpf_identificacao', function () {
-    var valor = $(this).val().replace(/\D/g, '');
-    if (valor.length < 11) {
-        $("#resultado_busca_identidade").slideUp();
-        $("#btn_buscar_identidade_div").fadeIn();
-        enderecoEntregaTemp = {}; // Limpa memória temporária
-    }
-});
-
-// 2. Bloqueio por LGPD e Busca de CEP no Checkout
-function buscarIdentidade() {
+function iniciarIdentificacaoSegura() {
     if (!document.getElementById('check_lgpd').checked) {
-        alert("Para continuar, você precisa autorizar o uso dos dados conforme a LGPD.");
+        alert("Para continuar, autorize o uso dos dados (LGPD).");
         return;
     }
 
     var cpf = document.getElementById('cpf_identificacao').value.replace(/\D/g, '');
-    if (cpf.length !== 11) {
-        alert("Informe um CPF válido");
-        return;
-    }
+    if (cpf.length !== 11) { alert("CPF inválido"); return; }
 
-    var btn = document.querySelector('#btn_buscar_identidade_div button');
-    btn.innerText = "Consultando...";
+    var btn = document.getElementById('btn_buscar_identidade');
+    var txtOriginal = btn.innerText;
+    btn.innerText = "Verificando...";
     btn.disabled = true;
 
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
-        body: JSON.stringify({ op: "buscar_cliente", cpf: cpf })
+        body: JSON.stringify({ op: "solicitar_codigo", cpf: cpf })
     })
-        .then(r => r.json())
-        .then(dados => {
-            btn.innerText = "Buscar CPF";
-            btn.disabled = false;
+    .then(r => r.json())
+    .then(dados => {
+        btn.innerText = txtOriginal;
+        btn.disabled = false;
 
-            if (dados && dados.encontrado) {
-                enderecoEntregaTemp = dados;
-                enderecoEntregaTemp.cpf = cpf; // ✅ garante CPF no checkout
-                // ✅ garante email/referencia no objeto temporário de entrega
-                enderecoEntregaTemp.email = String(dados.email ?? "").trim();
-                enderecoEntregaTemp.referencia = String(dados.referencia ?? "").trim();
+        if (dados.encontrado) {
+            if (dados.requerCodigo) {
+                // SUCESSO: Vai para tela de código
+                document.getElementById('lbl_destino_codigo').innerText = dados.destino;
+                
+                // Animação de troca de tela
+                $("#passo_cpf").fadeOut(200, function() {
+                    $("#passo_codigo").fadeIn(200);
+                    document.getElementById('input_codigo_otp').focus();
+                });
 
-
-                dadosClienteTemp.nome = String(dados.nome ?? "").trim();
-                dadosClienteTemp.sobrenome = String(dados.sobrenome ?? "").trim();
-                  dadosClienteTemp.email = String(dados.email ?? "").trim(); // ✅ NOVO
-                    dadosClienteTemp.referencia = String(dados.referencia ?? "").trim(); // ✅ NOVO
-
-
-
-                const tel = String(dados.telefone ?? "").trim();
-                const comp = String(dados.complemento ?? "").trim();
-                const bairro = String(dados.bairro ?? "").trim();
-                const cidade = String(dados.cidade ?? "").trim();
-                const uf = String(dados.uf ?? "").trim();
-
-
-
-
-                document.getElementById('resumo_dados_cliente').innerHTML = `
-        <div class="small">
-          <div class="fw-bold mb-1">${dadosClienteTemp.nome} ${dadosClienteTemp.sobrenome}</div>
-          <div>${dados.rua || ''}, ${dados.numero || ''}${comp ? ` - ${comp}` : ''}</div>
-          <div>${bairro ? bairro + ' - ' : ''}${cidade}/${uf}</div>
-            <div>CEP: ${dados.cep || ''}${tel ? ` | Tel: ${tel}` : ''}</div>
-            ${dadosClienteTemp.email ? `<div>Email: ${dadosClienteTemp.email}</div>` : ``}
-
-        </div>
-        <div class="form-text mt-2">
-          Se estiver desatualizado, escolha <strong>Editar/atualizar</strong>.
-        </div>
-      `;
-
-                $("#resultado_busca_identidade").slideDown();
-                $("#btn_buscar_identidade_div").hide();
             } else {
+                // Legado: Cliente antigo sem email
+                exibirDadosEncontrados(dados, cpf);
+            }
+        } else {
+            // CPF não existe -> Checkout Manual
+            if(confirm("CPF não encontrado. Deseja preencher o endereço manualmente?")) {
                 irParaCheckoutManual(cpf);
             }
-        })
-        .catch(err => {
-            console.error("Erro buscar_cliente:", err);
-            btn.innerText = "Buscar CPF";
-            btn.disabled = false;
-            alert("Erro ao consultar. Veja o Console (F12) para detalhes.");
-        });
+        }
+    })
+    .catch(e => {
+        console.error(e);
+        btn.innerText = txtOriginal;
+        btn.disabled = false;
+        alert("Erro de conexão. Tente novamente.");
+    });
 }
+
+function validarIdentificacaoSegura() {
+    var cpf = document.getElementById('cpf_identificacao').value.replace(/\D/g, '');
+    var codigo = document.getElementById('input_codigo_otp').value.replace(/\D/g, '');
+    
+    if (codigo.length < 6) { alert("Digite o código de 6 números."); return; }
+
+    var btn = document.querySelector('#passo_codigo .btn-success');
+    var txtOriginal = btn.innerText;
+    btn.innerText = "Validando...";
+    btn.disabled = true;
+
+    fetch(CONFIG.SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ op: "validar_codigo", cpf: cpf, codigo: codigo })
+    })
+    .then(r => r.json())
+    .then(dados => {
+        btn.innerText = txtOriginal;
+        btn.disabled = false;
+
+        if (dados.erro) {
+            alert("Erro: " + dados.erro);
+        } else if (dados.encontrado) {
+            // SUCESSO TOTAL: Código aceito
+            exibirDadosEncontrados(dados, cpf);
+        }
+    })
+    .catch(e => {
+        alert("Erro ao validar.");
+        btn.disabled = false;
+        btn.innerText = txtOriginal;
+    });
+}
+
+function voltarParaCpf() {
+    $("#passo_codigo").fadeOut(200, function() {
+        $("#passo_cpf").fadeIn(200);
+    });
+}
+
+function exibirDadosEncontrados(dados, cpf) {
+    // 1. Preenche as variáveis globais que o checkout usa
+    enderecoEntregaTemp = dados;
+    enderecoEntregaTemp.cpf = cpf;
+    
+    dadosClienteTemp.nome = String(dados.nome || "").trim();
+    dadosClienteTemp.sobrenome = String(dados.sobrenome || "").trim();
+    dadosClienteTemp.email = String(dados.email || "").trim();
+    dadosClienteTemp.referencia = String(dados.referencia || "").trim();
+
+    // 2. Esconde o formulário de código/cpf
+    document.querySelector('#modalIdentificacao .modal-body').style.display = 'none';
+
+    // 3. Monta o HTML de Sucesso
+    var modalContent = document.querySelector('#modalIdentificacao .modal-content');
+    
+    // Remove anterior se houver
+    var antigo = document.getElementById('container_sucesso_identificacao');
+    if (antigo) antigo.remove();
+
+    var divSucesso = document.createElement('div');
+    divSucesso.id = 'container_sucesso_identificacao';
+    divSucesso.className = 'p-4';
+    divSucesso.innerHTML = `
+        <div class="text-center mb-4">
+            <i class="bi bi-shield-check text-success" style="font-size: 3rem;"></i>
+            <h5 class="mt-2">Identidade Confirmada!</h5>
+        </div>
+        
+        <div class="bg-light p-3 rounded border mb-3">
+            <div class="fw-bold">${dadosClienteTemp.nome} ${dadosClienteTemp.sobrenome}</div>
+            <div class="small text-muted">
+                ${dados.rua}, ${dados.numero} ${dados.complemento ? '- ' + dados.complemento : ''}<br>
+                ${dados.bairro} - ${dados.cidade}/${dados.uf}<br>
+                CEP: ${dados.cep}
+            </div>
+        </div>
+
+        <div class="d-grid gap-2">
+             <button class="btn btn-success btn-lg" onclick="confirmarDadosExistentes('usar')">
+                <i class="bi bi-check-lg"></i> Usar este Endereço
+             </button>
+             <button class="btn btn-outline-warning" onclick="confirmarDadosExistentes('editar')">
+                <i class="bi bi-pencil"></i> Editar Informações
+             </button>
+             <button class="btn btn-link text-muted btn-sm" onclick="irParaCheckoutManual('${cpf}')">
+                Enviar para outro endereço
+             </button>
+        </div>
+    `;
+
+    modalContent.appendChild(divSucesso);
+}
+
+// Helper: Ir para checkout manual (limpa tudo)
+function irParaCheckoutManual(cpfInformado) {
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalIdentificacao')).hide();
+    document.getElementById('form-checkout').reset(); 
+    dadosClienteTemp = {};
+    
+    // Preenche apenas o CPF
+    document.getElementById('checkout_cpf').value = cpfInformado || document.getElementById('cpf_identificacao').value;
+    
+    new bootstrap.Modal(document.getElementById('modalCheckout')).show();
+}
+
+// Helper: Máscara CPF
+function mascaraCpf(i){
+   var v = i.value;
+   if(isNaN(v[v.length-1])){ i.value = v.substring(0, v.length-1); return; }
+   i.setAttribute("maxlength", "14");
+   if (v.length == 3 || v.length == 7) i.value += ".";
+   if (v.length == 11) i.value += "-";
+}
+
+// LGPD Checkbox Listener
+$(document).on('change', '#check_lgpd', function () {
+    const ok = this.checked;
+    $('#btn_buscar_identidade').prop('disabled', !ok);
+});
 
 
 // 3. Função para buscar CEP dentro da tela de pagamento
