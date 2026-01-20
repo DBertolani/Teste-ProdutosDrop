@@ -1802,46 +1802,61 @@ function efetivarPagamentoFinal() {
         });
 }
 
-// --- LÓGICA DE LOGIN (MEUS PEDIDOS) ---
+// --- LÓGICA DE LOGIN E MEUS PEDIDOS ---
 
 function iniciarLoginMeusPedidos() {
     var cpf = document.getElementById('login_cpf_acesso').value.replace(/\D/g, '');
-    if (cpf.length !== 11) { alert("CPF inválido"); return; }
+    if (cpf.length !== 11) { 
+        // Troca alert por validação visual
+        document.getElementById('login_cpf_acesso').classList.add('is-invalid');
+        return; 
+    }
+    document.getElementById('login_cpf_acesso').classList.remove('is-invalid');
 
     var btn = document.getElementById('btn_login_otp');
     var original = btn.innerText;
     btn.innerText = "Enviando...";
     btn.disabled = true;
 
-    // Reusa a mesma rota segura do checkout!
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
         body: JSON.stringify({ op: "solicitar_codigo", cpf: cpf })
     })
     .then(r => r.json())
     .then(dados => {
-        btn.innerText = original;
-        btn.disabled = false;
+        btn.innerText = "Código Enviado!";
+        setTimeout(() => { btn.innerText = original; btn.disabled = false; }, 2000);
 
         if (dados.encontrado) {
-            // Mostra campo de código
+            // ✅ SUCESSO SEM ALERT: Apenas desliza a área de código
             document.getElementById('form-login-otp').style.opacity = '0.5';
             $("#area_codigo_login").slideDown();
             document.getElementById('login_otp_input').focus();
-            alert("Código enviado para o e-mail cadastrado!");
         } else {
-            alert("CPF não encontrado. Faça sua primeira compra para se cadastrar.");
+            // Se não achou, mostra aviso sutil no botão
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-danger');
+            btn.innerText = "CPF não encontrado";
+            setTimeout(() => { 
+                btn.classList.remove('btn-danger'); 
+                btn.classList.add('btn-primary'); 
+                btn.innerText = original; 
+            }, 3000);
         }
     })
     .catch(e => {
         btn.disabled = false;
-        alert("Erro de conexão.");
+        btn.innerText = "Erro ao enviar";
     });
 }
 
 function validarLoginMeusPedidos() {
     var cpf = document.getElementById('login_cpf_acesso').value.replace(/\D/g, '');
     var codigo = document.getElementById('login_otp_input').value;
+    var btn = document.querySelector('#area_codigo_login button');
+    
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Verificando...';
+    btn.disabled = true;
 
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
@@ -1849,14 +1864,102 @@ function validarLoginMeusPedidos() {
     })
     .then(r => r.json())
     .then(dados => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-unlock-fill me-2"></i> Acessar Painel';
+
         if (dados.encontrado) {
-            // SUCESSO! Aqui você redirecionaria para uma página de pedidos
-            // Por enquanto, vamos apenas mostrar um alerta ou abrir um modal de lista
-            alert("Login realizado com sucesso! \nOlá " + dados.nome);
+            // ✅ SUCESSO: Fecha login e abre Pedidos
             bootstrap.Modal.getInstance(document.getElementById('modalLogin')).hide();
-            // Futuro: abrirModalMeusPedidos(dados.cpf);
+            abrirModalMeusPedidos(cpf); // <-- CHAMA A NOVA FUNÇÃO
         } else {
-            alert("Código inválido.");
+            // Erro visual no input de código
+            var inputCod = document.getElementById('login_otp_input');
+            inputCod.classList.add('is-invalid');
+            inputCod.value = "";
+            inputCod.placeholder = "Inválido";
         }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.innerText = "Erro de conexão";
+    });
+}
+
+// --- NOVO: Renderizar Lista de Pedidos ---
+function abrirModalMeusPedidos(cpf) {
+    new bootstrap.Modal(document.getElementById('modalListaPedidos')).show();
+    
+    const divLista = document.getElementById('container_pedidos_lista');
+    const divLoading = document.getElementById('loading_pedidos');
+    
+    divLista.innerHTML = '';
+    divLoading.style.display = 'block';
+
+    fetch(CONFIG.SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ op: "listar_pedidos", cpf: cpf })
+    })
+    .then(r => r.json())
+    .then(lista => {
+        divLoading.style.display = 'none';
+        
+        if (!lista || lista.length === 0 || lista.erro) {
+            divLista.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-basket text-muted" style="font-size: 3rem;"></i>
+                    <p class="mt-3 text-muted">Nenhum pedido encontrado para este CPF.</p>
+                </div>`;
+            return;
+        }
+
+        // Renderiza cada pedido
+        lista.forEach(p => {
+            // Formatação de Status (Cores)
+            let statusBadge = 'bg-secondary';
+            let st = String(p.status).toLowerCase();
+            if (st.includes('aprovado') || st.includes('pago')) statusBadge = 'bg-success';
+            else if (st.includes('pendente') || st.includes('aguardando')) statusBadge = 'bg-warning text-dark';
+            else if (st.includes('cancelado')) statusBadge = 'bg-danger';
+
+            // Formata Data
+            let dataFormatada = p.data;
+            try {
+               let d = new Date(p.data);
+               if(!isNaN(d)) dataFormatada = d.toLocaleDateString('pt-BR');
+            } catch(e){}
+
+            // Botão de Pagar (se pendente)
+            let btnPagar = '';
+            if ((st.includes('pendente') || st.includes('aguardando')) && p.link && p.link.startsWith('http')) {
+                btnPagar = `<a href="${p.link}" target="_blank" class="btn btn-sm btn-primary mt-2">
+                              <i class="bi bi-credit-card"></i> Pagar Agora
+                            </a>`;
+            }
+
+            const card = document.createElement('div');
+            card.className = 'card mb-3 shadow-sm border-0';
+            card.innerHTML = `
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">#${p.id}</span>
+                    <span class="badge ${statusBadge}">${p.status || 'Desconhecido'}</span>
+                </div>
+                <div class="card-body">
+                    <div class="small text-muted mb-2"><i class="bi bi-calendar"></i> ${dataFormatada}</div>
+                    <p class="mb-2" style="white-space: pre-wrap;">${p.itens}</p>
+                    <div class="d-flex justify-content-between align-items-end border-top pt-2 mt-2">
+                        <div>
+                             <span class="small text-muted">Total:</span>
+                             <div class="fw-bold text-success fs-5">R$ ${parseFloat(p.total).toFixed(2)}</div>
+                        </div>
+                        ${btnPagar}
+                    </div>
+                </div>
+            `;
+            divLista.appendChild(card);
+        });
+    })
+    .catch(e => {
+        divLoading.style.display = 'none';
+        divLista.innerHTML = '<div class="alert alert-danger">Erro ao carregar pedidos.</div>';
     });
 }
