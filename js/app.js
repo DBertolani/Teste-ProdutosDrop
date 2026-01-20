@@ -158,8 +158,23 @@ function carregar_config() {
 }
 
 function aplicar_config() {
-    // --- O que já funciona (Mantido) ---
-    if (CONFIG_LOJA.CorPrincipal) document.documentElement.style.setProperty('--cor-principal', CONFIG_LOJA.CorPrincipal);
+    // --- 0. Função Auxiliar de Conversão (Privada para não poluir o escopo global) ---
+    const obterLinkDiretoDrive = (url) => {
+        if (!url || typeof url !== 'string') return "";
+        if (!url.includes('drive.google.com')) return url;
+        
+        // Remove sufixos comuns e tenta extrair o ID via regex
+        let limpa = url.replace('/view?usp=sharing', '').replace('/view', '').replace('/preview', '');
+        let match = limpa.match(/\/d\/([^\/]+)|id=([^\&]+)/);
+        let id = match ? (match[1] || match[2]) : null;
+        
+        return id ? `https://drive.google.com/uc?export=view&id=${id}` : url;
+    };
+
+    // --- 1. O que já funciona (Mantido e Otimizado com a nova função) ---
+    if (CONFIG_LOJA.CorPrincipal) {
+        document.documentElement.style.setProperty('--cor-principal', CONFIG_LOJA.CorPrincipal);
+    }
 
     var titulo = CONFIG_LOJA.TituloAba || CONFIG_LOJA.NomeDoSite;
     if (titulo) {
@@ -176,32 +191,27 @@ function aplicar_config() {
     var logo = document.getElementById('logo_site');
     if (logo) {
         if (CONFIG_LOJA.LogoDoSite && CONFIG_LOJA.LogoDoSite.trim() !== "") {
-            var src = CONFIG_LOJA.LogoDoSite.replace('/view', '/preview');
+            // ✅ Agora usa a função inteligente de conversão
+            var src = obterLinkDiretoDrive(CONFIG_LOJA.LogoDoSite);
             logo.innerHTML = `<img src="${src}" alt="${CONFIG_LOJA.NomeDoSite}" style="max-height:40px; margin-right:10px;">`;
-        } else if (CONFIG_LOJA.NomeDoSite) { logo.innerText = CONFIG_LOJA.NomeDoSite; }
+        } else if (CONFIG_LOJA.NomeDoSite) { 
+            logo.innerText = CONFIG_LOJA.NomeDoSite; 
+        }
     }
 
     // --- ✅ NOVAS FUNCIONALIDADES (Adicionadas ao final) ---
 
-  
-// 1. Favicon Dinâmico (Com conversão automática do link do Drive)
+    // 1. Favicon Dinâmico (Com conversão automática inteligente)
     if (CONFIG_LOJA.Favicon) {
         let link = document.querySelector("link[rel*='icon']") || document.createElement('link');
         link.type = 'image/x-icon';
         link.rel = 'shortcut icon';
-        
-        // Converte link do Drive para link direto se necessário
-        let faviconUrl = CONFIG_LOJA.Favicon.replace('/view?usp=sharing', '').replace('/view', '');
-        if (faviconUrl.includes('drive.google.com')) {
-            let id = faviconUrl.split('/d/')[1] || faviconUrl.split('id=')[1];
-            faviconUrl = `https://drive.google.com/uc?export=view&id=${id}`;
-        }
-        
-        link.href = faviconUrl;
+        // ✅ Usa a mesma função inteligente do logo
+        link.href = obterLinkDiretoDrive(CONFIG_LOJA.Favicon);
         document.getElementsByTagName('head')[0].appendChild(link);
     }
 
-// 2. Botão de WhatsApp Flutuante (Lado Esquerdo e Menor)
+    // 2. Botão de WhatsApp Flutuante (Lado Esquerdo e Menor)
     if (CONFIG_LOJA.WhatsappFlutuante === "Sim" && CONFIG_LOJA.NumeroWhatsapp) {
         if (!document.getElementById('wa_flutuante')) {
             const waBtn = document.createElement('a');
@@ -211,13 +221,12 @@ function aplicar_config() {
             waBtn.target = "_blank";
             waBtn.innerHTML = '<i class="bi bi-whatsapp"></i>';
             
-            // ESTILO REVISADO PARA O LADO ESQUERDO
+            // Estilos
             waBtn.style.position = "fixed";
-            waBtn.style.width = "50px";  // Tamanho menor
-            waBtn.style.height = "50px"; // Tamanho menor
-            waBtn.style.bottom = "20px"; // Alinhado com o fundo
-            waBtn.style.left = "20px";   // 👈 MUDOU PARA A ESQUERDA
-            
+            waBtn.style.width = "50px"; 
+            waBtn.style.height = "50px";
+            waBtn.style.bottom = "20px";
+            waBtn.style.left = "20px"; // Lado Esquerdo
             waBtn.style.backgroundColor = "#25d366";
             waBtn.style.color = "#FFF";
             waBtn.style.border = "none";
@@ -235,7 +244,6 @@ function aplicar_config() {
         }
     }
 }
-
 // --- 2. MENU E CATEGORIAS ---
 function carregar_categorias(produtos) {
     const menu = document.getElementById('categoria_menu');
