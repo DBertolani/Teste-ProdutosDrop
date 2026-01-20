@@ -1158,6 +1158,7 @@ function iniciarPagamentoFinal(ev) {
         sobrenome: sobrenomeFinal,
         cpf: (document.getElementById('checkout_cpf')?.value || "").trim(),
         telefone: (document.getElementById('checkout_telefone')?.value || "").trim(),
+        email: (dadosClienteTemp.email || "").trim(),
         cep: (document.getElementById('checkout_cep')?.value || "").trim(),
         rua: (document.getElementById('checkout_rua')?.value || "").trim(),
         numero: (document.getElementById('checkout_numero')?.value || "").trim(),
@@ -1472,6 +1473,7 @@ function buscarIdentidade() {
 
                 dadosClienteTemp.nome = String(dados.nome ?? "").trim();
                 dadosClienteTemp.sobrenome = String(dados.sobrenome ?? "").trim();
+                  dadosClienteTemp.email = String(dados.email ?? "").trim(); // ✅ NOVO
 
 
                 const tel = String(dados.telefone ?? "").trim();
