@@ -211,22 +211,26 @@ function aplicar_config() {
         document.getElementsByTagName('head')[0].appendChild(link);
     }
 
-    // 2. Botão de WhatsApp Flutuante (Lado Esquerdo e Menor)
+// 2. Botão de WhatsApp Flutuante (Lado Esquerdo e Menor)
     if (CONFIG_LOJA.WhatsappFlutuante === "Sim" && CONFIG_LOJA.NumeroWhatsapp) {
         if (!document.getElementById('wa_flutuante')) {
             const waBtn = document.createElement('a');
             waBtn.id = 'wa_flutuante';
-            const foneLimpo = CONFIG_LOJA.NumeroWhatsapp.replace(/\D/g, '');
+            
+            // ✅ CORREÇÃO AQUI: Forçamos o número a ser uma String antes do replace
+            const foneRaw = String(CONFIG_LOJA.NumeroWhatsapp || "");
+            const foneLimpo = foneRaw.replace(/\D/g, '');
+            
             waBtn.href = `https://wa.me/${foneLimpo}`;
             waBtn.target = "_blank";
             waBtn.innerHTML = '<i class="bi bi-whatsapp"></i>';
             
-            // Estilos
+            // Estilos (Mantidos conforme você pediu)
             waBtn.style.position = "fixed";
             waBtn.style.width = "50px"; 
             waBtn.style.height = "50px";
             waBtn.style.bottom = "20px";
-            waBtn.style.left = "20px"; // Lado Esquerdo
+            waBtn.style.left = "20px"; 
             waBtn.style.backgroundColor = "#25d366";
             waBtn.style.color = "#FFF";
             waBtn.style.border = "none";
