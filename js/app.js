@@ -201,30 +201,30 @@ function aplicar_config() {
         document.getElementsByTagName('head')[0].appendChild(link);
     }
 
-    // 2. Botão de WhatsApp Flutuante
+// 2. Botão de WhatsApp Flutuante (Lado Esquerdo e Menor)
     if (CONFIG_LOJA.WhatsappFlutuante === "Sim" && CONFIG_LOJA.NumeroWhatsapp) {
-        // Evita criar o botão duplicado se a função rodar duas vezes
         if (!document.getElementById('wa_flutuante')) {
             const waBtn = document.createElement('a');
             waBtn.id = 'wa_flutuante';
-            // Remove qualquer caractere que não seja número do telefone
             const foneLimpo = CONFIG_LOJA.NumeroWhatsapp.replace(/\D/g, '');
             waBtn.href = `https://wa.me/${foneLimpo}`;
             waBtn.target = "_blank";
             waBtn.innerHTML = '<i class="bi bi-whatsapp"></i>';
             
-            // Estilização do botão
+            // ESTILO REVISADO PARA O LADO ESQUERDO
             waBtn.style.position = "fixed";
-            waBtn.style.width = "60px";
-            waBtn.style.height = "60px";
-            waBtn.style.bottom = "100px";
-            waBtn.style.right = "20px";
+            waBtn.style.width = "50px";  // Tamanho menor
+            waBtn.style.height = "50px"; // Tamanho menor
+            waBtn.style.bottom = "20px"; // Alinhado com o fundo
+            waBtn.style.left = "20px";   // 👈 MUDOU PARA A ESQUERDA
+            
             waBtn.style.backgroundColor = "#25d366";
             waBtn.style.color = "#FFF";
+            waBtn.style.border = "none";
             waBtn.style.borderRadius = "50px";
             waBtn.style.textAlign = "center";
-            waBtn.style.fontSize = "30px";
-            waBtn.style.boxShadow = "1px 1px 5px rgba(0,0,0,0.3)";
+            waBtn.style.fontSize = "26px";
+            waBtn.style.boxShadow = "0px 4px 10px rgba(0,0,0,0.2)";
             waBtn.style.zIndex = "9999";
             waBtn.style.display = "flex";
             waBtn.style.alignItems = "center";
