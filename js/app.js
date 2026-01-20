@@ -1955,7 +1955,9 @@ function efetivarPagamentoFinal() {
     }
 
     // ✅ CORREÇÃO PARA CHECKOUT WHATSAPP
-    if (CONFIG_LOJA.TipoCheckout === "WhatsApp") {
+        const tipo = String(CONFIG_LOJA.TipoCheckout || "").toLowerCase().trim();
+        if (tipo === "whatsapp") {
+
         let texto = `*Novo Pedido - ${CONFIG_LOJA.NomeDoSite || "Loja"}*\n\n`;
         texto += `*Cliente:* ${cliente.nome} ${cliente.sobrenome}\n`;
         texto += `*Telefone:* ${cliente.telefone}\n`; // Corrigido de .whatsapp para .telefone
