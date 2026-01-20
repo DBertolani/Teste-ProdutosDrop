@@ -1,11 +1,14 @@
 // --- CONTROLE DE VERSÃO E CACHE ---
-// mude o final desta string (ex: de v1 para v2)
-const VERSAO_SISTEMA = "2026-01-20_v3"; 
+const VERSAO_SISTEMA = "2026-01-20_v4"; // Mudei para v4 para forçar nova leitura
 
-if (localStorage.getItem("versao_cache") !== VERSAO_SISTEMA) {
-    localStorage.clear(); // Apaga tudo que está salvo (configurações antigas)
-    localStorage.setItem("versao_cache", VERSAO_SISTEMA);
-    console.log("Sistema atualizado: Cache local limpo.");
+try {
+    if (localStorage.getItem("versao_cache") !== VERSAO_SISTEMA) {
+        localStorage.clear(); 
+        localStorage.setItem("versao_cache", VERSAO_SISTEMA);
+        console.log("Sistema atualizado: Cache local limpo.");
+    }
+} catch (e) {
+    console.warn("Acesso ao storage bloqueado pelo navegador. Operando em modo limitado.", e);
 }
 // ----------------------------------
 
