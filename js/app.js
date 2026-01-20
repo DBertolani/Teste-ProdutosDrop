@@ -1490,7 +1490,9 @@ function buscarIdentidade() {
           <div class="fw-bold mb-1">${dadosClienteTemp.nome} ${dadosClienteTemp.sobrenome}</div>
           <div>${dados.rua || ''}, ${dados.numero || ''}${comp ? ` - ${comp}` : ''}</div>
           <div>${bairro ? bairro + ' - ' : ''}${cidade}/${uf}</div>
-          <div>CEP: ${dados.cep || ''}${tel ? ` | Tel: ${tel}` : ''}</div>
+            <div>CEP: ${dados.cep || ''}${tel ? ` | Tel: ${tel}` : ''}</div>
+            ${dadosClienteTemp.email ? `<div>Email: ${dadosClienteTemp.email}</div>` : ``}
+
         </div>
         <div class="form-text mt-2">
           Se estiver desatualizado, escolha <strong>Editar/atualizar</strong>.
