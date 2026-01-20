@@ -1153,20 +1153,22 @@ function iniciarPagamentoFinal(ev) {
         return;
     }
 
-    var cliente = {
-        nome: nomeFinal,
-        sobrenome: sobrenomeFinal,
-        cpf: (document.getElementById('checkout_cpf')?.value || "").trim(),
-        telefone: (document.getElementById('checkout_telefone')?.value || "").trim(),
-        email: (dadosClienteTemp.email || "").trim(),
-        cep: (document.getElementById('checkout_cep')?.value || "").trim(),
-        rua: (document.getElementById('checkout_rua')?.value || "").trim(),
-        numero: (document.getElementById('checkout_numero')?.value || "").trim(),
-        bairro: (document.getElementById('checkout_bairro')?.value || "").trim(),
-        cidade: (document.getElementById('checkout_cidade')?.value || "").trim(),
-        uf: (document.getElementById('checkout_uf')?.value || "").trim(),
-        complemento: (document.getElementById('checkout_complemento')?.value || "").trim()
-    };
+        var cliente = {
+          nome: nomeFinal,
+          sobrenome: sobrenomeFinal,
+          cpf: (document.getElementById('checkout_cpf')?.value || "").trim(),
+          telefone: (document.getElementById('checkout_telefone')?.value || "").trim(),
+          email: (document.getElementById('checkout_email')?.value || dadosClienteTemp.email || "").trim(),
+          cep: (document.getElementById('checkout_cep')?.value || "").trim(),
+          rua: (document.getElementById('checkout_rua')?.value || "").trim(),
+          numero: (document.getElementById('checkout_numero')?.value || "").trim(),
+          bairro: (document.getElementById('checkout_bairro')?.value || "").trim(),
+          cidade: (document.getElementById('checkout_cidade')?.value || "").trim(),
+          uf: (document.getElementById('checkout_uf')?.value || "").trim(),
+          complemento: (document.getElementById('checkout_complemento')?.value || "").trim(),
+          referencia: (document.getElementById('checkout_referencia')?.value || "").trim() // ✅ NOVO
+        };
+
 
     if (!cliente.cpf || !cliente.rua || !cliente.numero) {
         alert("Preencha CPF, Rua e Número.");
