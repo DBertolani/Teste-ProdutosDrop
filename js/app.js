@@ -1737,7 +1737,7 @@ function exibirDadosEncontrados(dados, cpf) {
         <div class="bg-light p-3 rounded border mb-3">
             <div class="fw-bold">${dadosClienteTemp.nome} ${dadosClienteTemp.sobrenome}</div>
             <div class="small text-muted">
-                ${dados.rua}, ${dados.numero} ${dados.complemento ? '- ' + dados.complemento : ''}<br>
+                ${dados.rua}, ${dados.numero} ${dados.complemento ? '- ' + dados.complemento : ''}${(dados.referencia || dados.Referencia || dados["Referência"]) ? ' - Ref: ' + (dados.referencia || dados.Referencia || dados["Referência"]) : ''}<br>
                 ${dados.bairro} - ${dados.cidade}/${dados.uf}<br>
                 CEP: ${dados.cep}
             </div>
@@ -1928,9 +1928,15 @@ function abrirConfirmacaoPedido(cliente, items, logisticaInfo) {
 
     if (destEl) destEl.innerText = `${cliente.nome} ${cliente.sobrenome} • CPF: ${cliente.cpf}`;
 
-    const linha1 = `${cliente.rua}, ${cliente.numero}${cliente.complemento ? " - " + cliente.complemento : ""}`;
-    const linha2 = `${cliente.bairro} - ${cliente.cidade}/${cliente.uf} • CEP: ${cliente.cep}`;
-    if (endEl) endEl.innerText = `${linha1}\n${linha2}`;
+const linha1 = `${cliente.rua}, ${cliente.numero}${cliente.complemento ? " - " + cliente.complemento : ""}`;
+const linha2 = `${cliente.bairro} - ${cliente.cidade}/${cliente.uf} • CEP: ${cliente.cep}`;
+
+// ✅ NOVO: Referência no resumo da entrega
+const ref = String(cliente.referencia || "").trim();
+const linha3 = ref ? `Referência: ${ref}` : "";
+
+if (endEl) endEl.innerText = [linha1, linha2, linha3].filter(Boolean).join("\n");
+
 
     const itensSomenteProdutos = items.filter(it => !(String(it.title || "").toLowerCase().includes("frete")));
     const htmlItens = itensSomenteProdutos
@@ -1978,6 +1984,9 @@ function efetivarPagamentoFinal() {
         texto += `*Endereço:* ${cliente.rua}, ${cliente.numero}\n`;
         texto += `*Bairro:* ${cliente.bairro} - ${cliente.cidade}/${cliente.uf}\n`;
         if(cliente.complemento) texto += `*Comp:* ${cliente.complemento}\n`;
+        if (cliente.referencia && String(cliente.referencia).trim()) {
+          texto += `*Referência:* ${String(cliente.referencia).trim()}\n`;
+        }
         texto += `\n*--- Itens ---*\n`;
         
         let subtotalProdutos = 0;
