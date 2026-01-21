@@ -479,6 +479,21 @@ function carregar_produtos() {
         });
 }
 
+function getColMobileClass() {
+  const n = parseInt(CONFIG_LOJA.ColunasMobile, 10);
+
+  // 1 coluna no mobile
+  if (n === 1) return "col-12";
+
+  // 2 colunas no mobile (padrão bootstrap)
+  if (n === 2) return "col-6";
+
+  // 3 colunas no mobile (opcional)
+  if (n === 3) return "col-4";
+
+  // fallback seguro
+  return "col-6";
+}
 
 function mostrar_skeleton(exibir) {
     const container = document.getElementById('loading_skeleton_container');
@@ -492,7 +507,7 @@ function mostrar_skeleton(exibir) {
         boxes.innerHTML = '';
         for (let i = 0; i < 4; i++) {
             boxes.innerHTML += `
-            <div class="${colClass} col-6"> 
+            <div class="${colClass} ${getColMobileClass()}">
                 <div class="card shadow-sm h-100 border-0">
                     <div class="card-img-top bg-secondary" style="height: 150px; opacity:0.1; animation: pulse 1.5s infinite;"></div>
                     <div class="card-body">
@@ -524,7 +539,9 @@ function mostrar_produtos(produtos) {
         var altText = p.Produto + " - " + p.Categoria;
         var infoExtra = (p.Tamanhos || p.Variacoes) ? `<small>Opções disponíveis</small>` : '';
         const item = document.createElement('div');
-        item.className = `${colClass} col-6 mt-4`;
+        const colMobile = getColMobileClass();
+        item.className = `${colClass} ${colMobile} mt-4`;
+
 
         item.innerHTML = `
       <div class="card shadow-sm h-100">
@@ -1416,106 +1433,6 @@ function iniciarPagamentoFinal(ev) {
 
 }
 
-
-// --- 8. INICIALIZAÇÃO ---
-document.addEventListener("DOMContentLoaded", function () {
-    carregar_config();
-    atualizar_carrinho();
-
-    // ✅ BUSCA: filtra enquanto digita + Enter
-    const busca = document.getElementById('txt_search');
-    if (busca) {
-        busca.addEventListener('input', filtrarProdutos);
-
-        busca.addEventListener('search', () => filtrarProdutos()); // ✅ ADICIONAR
-
-        busca.addEventListener('keydown', (e) => {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                filtrarProdutos();
-            }
-            // ✅ Quando abrir/fechar o offcanvas de filtros, esconde/mostra carrinho flutuante
-            const offEl = document.getElementById('offcanvasFiltros');
-            if (offEl) {
-                offEl.addEventListener('show.bs.offcanvas', () => {
-                    document.body.classList.add('filtros-abertos');
-                });
-
-                offEl.addEventListener('hidden.bs.offcanvas', () => {
-                    document.body.classList.remove('filtros-abertos');
-                });
-            }
-
-
-        });
-    }
-
-
-    // ✅ BUSCA MOBILE: filtra enquanto digita e quando limpa no "X"
-    const buscaMob = document.getElementById('txt_search_mobile');
-    if (buscaMob) {
-        buscaMob.addEventListener('input', filtrarProdutos);
-
-        // evento "search" dispara no mobile ao apertar "Pesquisar" ou ao limpar no X do input type=search
-        buscaMob.addEventListener('search', () => filtrarProdutos());
-
-        buscaMob.addEventListener('keydown', (e) => {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                filtrarProdutos();
-            }
-        });
-    }
-
-
-    // ✅ BUSCA: garante que lupinha e teclado do celular executem a busca
-    const formBusca = document.getElementById('form_busca');
-    if (formBusca) {
-        formBusca.addEventListener('submit', (e) => {
-            e.preventDefault();
-            filtrarProdutos();
-            // opcional: fecha menu mobile após buscar
-            fechar_menu_mobile();
-        });
-    }
-
-
-
-    sincronizarBuscaEntreCampos();
-
-    // submit do form mobile
-    const formBuscaMob = document.getElementById('form_busca_mobile');
-    if (formBuscaMob) {
-        formBuscaMob.addEventListener('submit', (e) => {
-            e.preventDefault();
-            filtrarProdutos();
-        });
-    }
-
-
-
-    const modais = [
-        'modalProduto',
-        'modalCarrito',
-        'modalCheckout',
-        'modalLogin',
-        'modalUsuario',
-        'modalIdentificacao',
-        'modalConfirmacaoPedido'
-    ];
-
-    const btnFloat = document.getElementById('btn_carrinho_flutuante');
-
-    modais.forEach(id => {
-        var el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('show.bs.modal', () => { if (btnFloat) btnFloat.style.display = 'none'; });
-            el.addEventListener('hidden.bs.modal', () => {
-                if (!document.querySelector('.modal.show') && btnFloat) btnFloat.style.display = 'block';
-            });
-        }
-    });
-});
 
 
 // Monitora se o usuário está tentando mudar o CEP no meio do caminho
