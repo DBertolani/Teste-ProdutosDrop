@@ -246,6 +246,77 @@ if (podeUsarStorage()) {
         });
 }
 
+// --- ACESSIBILIDADE: calcula cor de texto (preto/branco) com bom contraste ---
+function hexToRgb(hex) {
+  if (!hex) return null;
+  let h = String(hex).trim();
+
+  // aceita "0d6efd" ou "#0d6efd"
+  if (!h.startsWith("#")) h = "#" + h;
+
+  // suporta #RGB
+  if (h.length === 4) {
+    h = "#" + h[1] + h[1] + h[2] + h[2] + h[3] + h[3];
+  }
+  if (!/^#[0-9a-fA-F]{6}$/.test(h)) return null;
+
+  const r = parseInt(h.slice(1, 3), 16);
+  const g = parseInt(h.slice(3, 5), 16);
+  const b = parseInt(h.slice(5, 7), 16);
+  return { r, g, b };
+}
+
+function luminanciaRelativa({ r, g, b }) {
+  // WCAG relative luminance
+  const srgb = [r, g, b].map(v => v / 255).map(v =>
+    v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+  );
+  return 0.2126 * srgb[0] + 0.7152 * srgb[1] + 0.0722 * srgb[2];
+}
+
+function escolherTextoContraste(bgHex) {
+  const rgb = hexToRgb(bgHex);
+  if (!rgb) return "#FFFFFF"; // fallback
+  const L = luminanciaRelativa(rgb);
+
+  // contraste com branco e preto (WCAG)
+  const contrasteBranco = (1.05) / (L + 0.05);
+  const contrastePreto  = (L + 0.05) / (0.05);
+
+  return (contrastePreto >= contrasteBranco) ? "#000000" : "#FFFFFF";
+}
+
+function escurecerHex(bgHex, fator = 0.15) {
+  const rgb = hexToRgb(bgHex);
+  if (!rgb) return bgHex;
+  const clamp = (n) => Math.max(0, Math.min(255, n));
+  const r = clamp(Math.round(rgb.r * (1 - fator)));
+  const g = clamp(Math.round(rgb.g * (1 - fator)));
+  const b = clamp(Math.round(rgb.b * (1 - fator)));
+  return "#" + [r,g,b].map(v => v.toString(16).padStart(2,"0")).join("");
+}
+
+function aplicarTemaAcessivel(corPrincipal) {
+  if (!corPrincipal) return;
+
+  const texto = escolherTextoContraste(corPrincipal);
+  const hover = escurecerHex(corPrincipal, 0.12);
+
+  document.documentElement.style.setProperty("--cor-principal", corPrincipal);
+  document.documentElement.style.setProperty("--cor-principal-texto", texto);
+  document.documentElement.style.setProperty("--cor-principal-hover", hover);
+
+  // Navbar: alterna automaticamente navbar-dark/light
+  const nav = document.querySelector("nav.navbar");
+  if (nav) {
+    nav.style.backgroundColor = "var(--cor-principal)";
+    nav.classList.remove("bg-primary"); // evita conflito com bootstrap
+    nav.classList.toggle("navbar-dark", texto === "#FFFFFF");
+    nav.classList.toggle("navbar-light", texto === "#000000");
+  }
+}
+
+
 function aplicar_config() {
     // --- 0. Função Auxiliar de Conversão Robusta ---
     const obterLinkDiretoDrive = (url) => {
@@ -262,10 +333,12 @@ function aplicar_config() {
         return id ? `https://drive.google.com/thumbnail?authuser=0&sz=w800&id=${id}` : url;
     };
 
-    // 1. Cor Principal
+ 
+    // 1. Cor Principal (com contraste automático)
     if (CONFIG_LOJA.CorPrincipal) {
-        document.documentElement.style.setProperty('--cor-principal', CONFIG_LOJA.CorPrincipal);
+        aplicarTemaAcessivel(CONFIG_LOJA.CorPrincipal);
     }
+
 
     // 2. Títulos e SEO
     var titulo = CONFIG_LOJA.TituloAba || CONFIG_LOJA.NomeDoSite;
