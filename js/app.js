@@ -661,7 +661,7 @@ function mostrar_produtos(produtos) {
           <div class="card-body d-flex flex-column">
               <p class="card-text">
                   <strong>${p.Produto}</strong><br/>
-                  <span class="text-primary fw-bold" style="font-size: 1.2rem;">R$ ${parseFloat(p.Preço).toFixed(2)}</span><br/>
+                  <span class="text-primary fw-bold" style="font-size: 1.2rem;">R$ ${moneyToFloat(p.Preço).toFixed(2)}</span><br/>
                   <small class="text-muted">${p.Categoria}</small><br/>
                   ${infoExtra}
               </p>
@@ -1031,23 +1031,33 @@ var freteSelecionadoNome = "";
 var enderecoEntregaTemp = {};
 
 function adicionar_carrinho(id, prod, preco, img, freteGratisUF, variacao) {
-   var c = lsGetJSON('carrinho', []);
-    var existe = c.find(i => i.id === id);
+var c = lsGetJSON('carrinho', []);
+var existe = c.find(i => i.id === id);
 
-    if (existe) {
-        existe.quantidade++;
-    } else {
-        c.push({
-            id: id,
-            producto: prod,
-            preco: preco,
-            imagem: img,
-            quantidade: 1,
-            freteGratisUF: freteGratisUF,
-            variacao: variacao
-        });
+if (existe) {
+    existe.quantidade++;
+
+    // ✅ BÔNUS (o que você perguntou): garante que o preço vira número
+    if (!Number.isFinite(existe.preco)) {
+        existe.preco = moneyToFloat(existe.preco);
     }
-   lsSetJSON('carrinho', c);
+} else {
+    c.push({
+        id: id,
+        producto: prod,
+
+        // ✅ CRÍTICO: salva o preço já convertido (resolve vírgula "129,90")
+        preco: moneyToFloat(preco),
+
+        imagem: img,
+        quantidade: 1,
+        freteGratisUF: freteGratisUF,
+        variacao: variacao
+    });
+}
+
+lsSetJSON('carrinho', c);
+
     atualizar_carrinho();
 
     freteCalculado = 0;
@@ -1139,7 +1149,7 @@ function atualizar_carrinho() {
             <div>
                 <div style="font-size:0.85rem; font-weight:bold; line-height: 1.2;">${i.producto}</div>
                 ${textoVariacao}
-                <div style="font-size:0.8rem; color:#666; margin-top:2px;">Unit: R$ ${parseFloat(i.preco).toFixed(2)}</div>
+                <div style="font-size:0.8rem; color:#666; margin-top:2px;">Unit: R$ ${moneyToFloat(i.preco).toFixed(2)}</div>
             </div>
         </div>
         
@@ -1150,7 +1160,7 @@ function atualizar_carrinho() {
         </div>
 
         <div class="text-end d-flex flex-column align-items-end" style="width: 25%;">
-             <div style="font-weight:bold; font-size: 0.9rem; margin-bottom: 5px;">R$ ${(i.preco * i.quantidade).toFixed(2)}</div>
+             <div style="font-weight:bold; font-size: 0.9rem; margin-bottom: 5px;">R$ ${(moneyToFloat(i.preco) * (parseInt(i.quantidade,10)||1)).toFixed(2)}</div>
              <div>
                 ${btnEditar}
                 <button class="btn btn-sm btn-outline-danger" onclick="remover_carrinho('${i.id}')" title="Excluir Item">
@@ -1159,7 +1169,7 @@ function atualizar_carrinho() {
              </div>
         </div>`;
         div.appendChild(row);
-        subtotal += i.preco * i.quantidade;
+        subtotal += (moneyToFloat(i.preco) * (parseInt(i.quantidade, 10) || 1));
     });
 
     document.getElementById('resumo_subtotal').innerText = 'R$ ' + subtotal.toFixed(2);
@@ -1412,47 +1422,7 @@ function irParaCheckout() {
     new bootstrap.Modal(document.getElementById('modalCheckout')).show();
 }
 
-// --- NOVO: BUSCA AUTOMÁTICA DE CLIENTE POR CPF ---
-$(document).on('blur', '#checkout_cpf', function () {
-    var cpf = $(this).val().replace(/\D/g, '');
-    if (cpf.length === 11) {
-        fetch(CONFIG.SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({ op: "buscar_cliente", cpf: cpf })
-        })
-            .then(r => r.json())
-            .then(dados => {
-                if (dados.encontrado) {
-                    dadosClienteTemp.nome = dados.nome || "";
-                    dadosClienteTemp.sobrenome = dados.sobrenome || "";
 
-                    enderecoEntregaTemp.cep = dados.cep; // <-- ADICIONADO AQUI para a segurança funcionar
-                    // Exibe o aviso bonito em vez do confirm do navegador
-                    $("#aviso_cpf_encontrado").fadeIn();
-
-                    // Configura o botão para preencher os dados se o usuário aceitar
-                    document.getElementById('btn_usar_dados_antigos').onclick = function () {
-                        document.getElementById('checkout_telefone').value = dados.telefone || "";
-                        document.getElementById('checkout_rua').value = dados.rua || "";
-                        document.getElementById('checkout_numero').value = dados.numero || "";
-                        document.getElementById('checkout_bairro').value = dados.bairro || "";
-                        document.getElementById('checkout_cidade').value = dados.cidade || "";
-                        document.getElementById('checkout_uf').value = dados.uf || dados.estado || "";
-                 
-                        document.getElementById('checkout_complemento').value = dados.complemento || "";
-                        document.getElementById('checkout_referencia').value = dados.referencia || "";
-
-
-                        // Validação Crítica de CEP
-                        if (dados.cep && dados.cep.replace(/\D/g, '') !== document.getElementById('carrinho_cep').value.replace(/\D/g, '')) {
-                            alert("Atenção: O endereço cadastrado tem um CEP diferente do usado no cálculo do frete. Por favor, verifique se deseja manter o endereço ou recalcular o frete.");
-                        }
-                        $("#aviso_cpf_encontrado").fadeOut();
-                    };
-                }
-            });
-    }
-});
 
 function iniciarPagamentoFinal(ev) {
     if (!validarCepCheckoutComFrete()) return;
@@ -1736,6 +1706,8 @@ function voltarParaCpf() {
 function exibirDadosEncontrados(dados, cpf) {
     // 1. Preenche as variáveis globais que o checkout usa
     enderecoEntregaTemp = dados;
+    enderecoEntregaTemp.referencia =
+      String(dados.referencia || dados.Referencia || dados["Referência"] || "").trim();
     enderecoEntregaTemp.cpf = cpf;
     
     dadosClienteTemp.nome = String(dados.nome || "").trim();
@@ -1829,7 +1801,8 @@ function buscarCepNoCheckout() {
                 document.getElementById('checkout_rua').value = d.logradouro;
                 document.getElementById('checkout_bairro').value = d.bairro;
                 document.getElementById('checkout_cidade').value = d.localidade;
-                document.getElementById('checkout_uf').value = enderecoEntregaTemp.estado || enderecoEntregaTemp.uf || "";
+                document.getElementById('checkout_uf').value = d.uf || "";
+
 
                 enderecoEntregaTemp.cep = cep; // Atualiza para validação de frete
                 validarCepsIdenticos();
@@ -1867,7 +1840,8 @@ function confirmarDadosExistentes(acao) {
   document.getElementById('checkout_complemento').value = S(enderecoEntregaTemp.complemento);
   
   // ✅ CORREÇÃO: Mapeamento direto sem heurística
-  document.getElementById('checkout_referencia').value  = S(enderecoEntregaTemp.referencia); 
+  document.getElementById('checkout_referencia').value =
+  S(enderecoEntregaTemp.referencia || enderecoEntregaTemp.Referencia || enderecoEntregaTemp["Referência"]);
   document.getElementById('checkout_bairro').value      = S(enderecoEntregaTemp.bairro);
   document.getElementById('checkout_cidade').value      = S(enderecoEntregaTemp.cidade);
   
