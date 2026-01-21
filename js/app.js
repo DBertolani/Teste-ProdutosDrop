@@ -534,6 +534,21 @@ function mostrar_skeleton(exibir) {
     }
 }
 
+function ajustarImagemDrive(url, widthPx) {
+  if (!url || typeof url !== "string") return url;
+  if (!url.includes("drive.google.com")) return url;
+
+  // pega ID
+  const regex = /\/d\/([^\/]+)|id=([^\&]+)/;
+  const match = url.match(regex);
+  const id = match ? (match[1] || match[2]) : null;
+  if (!id) return url;
+
+  const w = Math.max(120, Math.min(Number(widthPx) || 400, 1600));
+  return `https://drive.google.com/thumbnail?authuser=0&sz=w${w}&id=${id}`;
+}
+
+
 function mostrar_produtos(produtos) {
     const container = document.getElementById('div_produtos');
     container.innerHTML = '';
@@ -550,6 +565,7 @@ function mostrar_produtos(produtos) {
     produtos.forEach(p => {
         var altText = p.Produto + " - " + p.Categoria;
         var infoExtra = (p.Tamanhos || p.Variacoes) ? `<small>Opções disponíveis</small>` : '';
+        const imgCard = ajustarImagemDrive(p.ImagemPrincipal, 500);
         const item = document.createElement('div');
         const colMobile = getColMobileClass();
         item.className = `${colClass} ${colMobile} mt-4`;
@@ -558,7 +574,16 @@ function mostrar_produtos(produtos) {
         item.innerHTML = `
       <div class="card shadow-sm h-100">
           <div style="height: 250px; display: flex; align-items: center; justify-content: center; background: #fff;">
-             <img src="${p.ImagemPrincipal}" alt="${altText}" loading="lazy" style="max-height: 100%; max-width: 100%; object-fit: contain; padding: 10px;"/>
+             <img 
+                  src="${imgCard}" 
+                  alt="${altText}" 
+                  loading="lazy"
+                  decoding="async"
+                  width="600"
+                  height="600"
+                  style="max-height: 100%; max-width: 100%; object-fit: contain; padding: 10px;"
+                />
+
           </div>
           <div class="card-body d-flex flex-column">
               <p class="card-text">
@@ -704,27 +729,36 @@ function abrir_modal_ver(id) {
         imgs = imgs.concat(produtoAtual.ImagensExtras.split(',').map(s => s.trim()));
     }
 
-    // 1) monta lista final limpa
-    const imgsLimpa = imgs
-        .map(s => String(s || "").trim())
-        .filter(s => s.length > 4);
+// 1) monta lista final limpa
+const imgsLimpa = imgs
+    .map(s => String(s || "").trim())
+    .filter(s => s.length > 4);
+
+// lista para o viewer (imagem maior, mas otimizada)
+const imgsViewer = imgsLimpa.map(s => ajustarImagemDrive(s, 1600));
+
 
     // 2) renderiza com a lista final (a mesma para todos)
-    imgsLimpa.forEach((src, idx) => {
-        var div = document.createElement('div');
-        div.className = (idx === 0) ? 'carousel-item active' : 'carousel-item';
+imgsLimpa.forEach((src, idx) => {
+  var div = document.createElement('div');
+  const srcAjustado = ajustarImagemDrive(src, 1200);
+  div.className = (idx === 0) ? 'carousel-item active' : 'carousel-item';
 
-        div.innerHTML = `
+  div.innerHTML = `
     <img
-      src="${src}"
+      src="${srcAjustado}"
       class="d-block w-100"
+      width="900"
+      height="300"
+      decoding="async"
       style="height: 300px; object-fit: contain; background: #f8f9fa; cursor: zoom-in;"
-      onclick='abrirViewerImagens(${JSON.stringify(imgsLimpa)}, ${idx}, "Galeria")'
+      onclick='abrirViewerImagens(${JSON.stringify(imgsViewer)}, ${idx}, "Galeria")'
     >
   `;
 
-        containerImagens.appendChild(div);
-    });
+  containerImagens.appendChild(div);
+});
+
 
 
     var divVar = document.getElementById('areaVariacoes');
@@ -749,7 +783,7 @@ function abrir_modal_ver(id) {
     var divMedidas = document.getElementById('areaTabelaMedidas');
     if (produtoAtual.TamanhosImagens && produtoAtual.TamanhosImagens.trim() !== "") {
         divMedidas.style.display = 'block';
-        document.getElementById('imgTabelaMedidas').src = produtoAtual.TamanhosImagens;
+        document.getElementById('imgTabelaMedidas').src = ajustarImagemDrive(produtoAtual.TamanhosImagens, 1200);
         // ✅ Viewer da Tabela de Medidas
         const btnTab = document.getElementById('btnTabelaMedidas');
         const imgTab = document.getElementById('imgTabelaMedidas');
@@ -759,7 +793,7 @@ function abrir_modal_ver(id) {
             if (imgTab) imgTab.classList.add('d-none');
 
             btnTab.onclick = function () {
-                abrirViewerImagens([produtoAtual.TamanhosImagens], 0, 'Tabela de Medidas');
+                abrirViewerImagens([ajustarImagemDrive(produtoAtual.TamanhosImagens, 1600)], 0, 'Tabela de Medidas');
                 return false;
             };
         }
@@ -1020,7 +1054,15 @@ function atualizar_carrinho() {
 
         row.innerHTML = `
         <div class="d-flex align-items-center" style="width: 45%;">
-            <img src="${i.imagem}" style="width:50px; height:50px; object-fit:cover; margin-right:10px; border-radius:5px;">
+            <img 
+              src="${i.imagem}" 
+              width="50" 
+              height="50"
+              loading="lazy"
+              decoding="async"
+              style="width:50px; height:50px; object-fit:cover; margin-right:10px; border-radius:5px;"
+            >
+
             <div>
                 <div style="font-size:0.85rem; font-weight:bold; line-height: 1.2;">${i.producto}</div>
                 ${textoVariacao}
