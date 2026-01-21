@@ -1957,7 +1957,7 @@ if (endEl) endEl.innerText = [linha1, linha2, linha3].filter(Boolean).join("\n")
     new bootstrap.Modal(document.getElementById('modalConfirmacaoPedido')).show();
 }
 
-function efetivarPagamentoFinal() {
+async function efetivarPagamentoFinal() {
     const pend = window.__pedidoPendente;
     if (!pend) {
         alert("Pedido pendente não encontrado. Tente novamente.");
@@ -2011,6 +2011,47 @@ function efetivarPagamentoFinal() {
         if (btn) {
             btn.innerText = "Pedido Enviado!";
         }
+
+// ✅ 1) REGISTRAR NA PLANILHA (VENDAS) MESMO SENDO WHATSAPP
+try {
+  await fetch(CONFIG.SCRIPT_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      op: "registrar_pedido_whatsapp",
+      cliente,
+      items,
+      logistica: logisticaInfo,
+      canal: "whatsapp",
+      frete_nome: freteSelecionadoNome || "",
+      frete_valor: Number(freteCalculado) || 0
+    })
+  }).then(r => r.json()).then(resp => {
+    // opcional: guardar ID retornado pelo back
+    if (resp && resp.idPedido) {
+      console.log("Pedido WhatsApp registrado:", resp.idPedido);
+    }
+  });
+} catch (e) {
+  console.warn("Falha ao registrar pedido WhatsApp (seguindo mesmo assim):", e);
+}
+
+// ✅ 2) LIMPAR CARRINHO APÓS ENVIAR PRO WHATSAPP
+lsRemove("carrinho");
+atualizar_carrinho();
+
+freteCalculado = 0;
+freteSelecionadoNome = "";
+limparFreteCache();
+bloquearCheckout(true);
+
+const divOp = document.getElementById("carrinho_opcoes_frete");
+if (divOp) divOp.innerHTML = "";
+
+// (opcional) fechar modal do carrinho/checkout se estiver aberto
+try {
+  bootstrap.Modal.getInstance(document.getElementById('modalCheckout'))?.hide();
+} catch(e){}
+
         
         // Abre o WhatsApp
         window.open(linkWa, '_blank');
@@ -2023,26 +2064,35 @@ function efetivarPagamentoFinal() {
     }
 
     // --- Fluxo Original Mercado Pago (Mantido) ---
-    fetch(CONFIG.SCRIPT_URL, {
-        method: 'POST',
-        body: JSON.stringify({ cliente, items, logistica: logisticaInfo })
+// --- Fluxo Original Mercado Pago (Mantido) ---
+fetch(CONFIG.SCRIPT_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+        cliente,
+        items,
+        logistica: logisticaInfo,
+
+        // ✅ NOVO: para o backend saber pra onde voltar
+        return_to: window.location.href
     })
-    .then(r => r.text())
-    .then(link => { 
-        if(link.includes("http")) {
-            window.location.href = link; 
-        } else {
-            alert("Erro ao gerar link de pagamento: " + link);
-            if(btn) { btn.innerText = "Tentar Novamente"; btn.disabled = false; }
-        }
-    })
-    .catch(e => {
-        alert("Erro ao processar.");
-        if (btn) {
-            btn.innerText = "Tentar Novamente";
-            btn.disabled = false;
-        }
-    });
+})
+.then(r => r.text())
+.then(link => { 
+    if(link.includes("http")) {
+        window.location.href = link; 
+    } else {
+        alert("Erro ao gerar link de pagamento: " + link);
+        if(btn) { btn.innerText = "Tentar Novamente"; btn.disabled = false; }
+    }
+})
+.catch(e => {
+    alert("Erro ao processar.");
+    if (btn) {
+        btn.innerText = "Tentar Novamente";
+        btn.disabled = false;
+    }
+});
+
 }
 
 // --- LÓGICA DE LOGIN E MEUS PEDIDOS ---
