@@ -1,5 +1,7 @@
 // --- CONTROLE DE VERSÃO E CACHE (MODO SEGURO) ---
 const VERSAO_SISTEMA = "2026-01-20_v5"; 
+const STORAGE_KEY_PRODUTOS = "produtos_cache";
+
 
 // --- NOVO MODO DE SEGURANÇA MÁXIMA ---
 function podeUsarStorage() {
@@ -16,15 +18,23 @@ function podeUsarStorage() {
     }
 }
 
-// Substitua seu bloco de limpeza de cache por este:
+// Substitua seu bloco de limpeza de cache por este (SAFE + sem erro de sintaxe):
 try {
-    if (podeUsarStorage()) {
-        if (localStorage.getItem("versao_cache") !== VERSAO_SISTEMA) {
-            localStorage.clear();
-            localStorage.setItem("versao_cache", VERSAO_SISTEMA);
-        }
+  if (podeUsarStorage()) {
+    const versaoAtual = lsGetRaw("versao_cache"); // usa helper safe
+    if (versaoAtual !== VERSAO_SISTEMA) {
+      // limpa só o que é do seu app
+      lsRemove("carrinho");
+      lsRemove(STORAGE_KEY_PRODUTOS);
+      lsRemove("loja_config");
+      lsRemove("frete_cache");
+      lsRemove("sessao_cliente");
+
+      lsSetRaw("versao_cache", VERSAO_SISTEMA); // usa helper safe
     }
-} catch (e) { }
+  }
+} catch (e) {}
+
 
 
 //----
@@ -141,7 +151,7 @@ function filtrarProdutos() {
     const termo = normalizarTexto(obterTermoBusca());
 
 if (!Array.isArray(ALL_PRODUTOS) || ALL_PRODUTOS.length === 0) {
-    ALL_PRODUTOS = lsGetJSON('calçados', []);
+    ALL_PRODUTOS = lsGetJSON(STORAGE_KEY_PRODUTOS, []);
 }
 
     const filtrados = ALL_PRODUTOS.filter(p => {
@@ -201,14 +211,15 @@ function mascaraCep(t) {
 function carregar_config() {
     var url = CONFIG.SCRIPT_URL + "?rota=config&nocache=" + new Date().getTime();
 
-    // Tenta carregar do Cache APENAS se o storage estiver liberado
-    if (podeUsarStorage()) {
-        var configCache = JSON.parse(localStorage.getItem('loja_config'));
-        if (configCache) {
-            CONFIG_LOJA = configCache;
-            aplicar_config();
-        }
+// Tenta carregar do Cache APENAS se o storage estiver liberado (modo seguro)
+if (podeUsarStorage()) {
+    var configCache = lsGetJSON('loja_config', null);
+    if (configCache) {
+        CONFIG_LOJA = configCache;
+        aplicar_config();
     }
+}
+
 
     fetch(url)
         .then(res => res.json())
@@ -220,9 +231,10 @@ function carregar_config() {
             } else { config = data; }
 
             // Salva no cache apenas se permitido
-            if (podeUsarStorage()) {
-                localStorage.setItem("loja_config", JSON.stringify(config));
-            }
+if (podeUsarStorage()) {
+    lsSetJSON("loja_config", config);
+}
+
             
             CONFIG_LOJA = config;
             aplicar_config();
@@ -358,7 +370,7 @@ function carregar_categorias(produtos) {
 function mostrar_produtos_por_categoria(cat) {
     var dados = (ALL_PRODUTOS && ALL_PRODUTOS.length)
         ? ALL_PRODUTOS
-        : (JSON.parse(localStorage.getItem('calçados')) || []);
+       : (lsGetJSON(STORAGE_KEY_PRODUTOS, []));
 
     var filtrados = dados.filter(p => p.Categoria === cat);
     mostrar_produtos(filtrados);
@@ -440,7 +452,7 @@ function carregar_produtos() {
     // 1. Tenta pegar o cache SOMENTE se puder usar storage
     let cache = [];
     if (podeUsarStorage()) {
-        cache = lsGetJSON('calçados', []);
+        cache = lsGetJSON(STORAGE_KEY_PRODUTOS, []);
     }
     
     if (cache && cache.length > 0) {
@@ -463,7 +475,7 @@ function carregar_produtos() {
             if (Array.isArray(data) && data.length > 0) {
                 // Tenta salvar no cache, mas se falhar não trava o site
                 if (podeUsarStorage()) {
-                    lsSetJSON("calçados", data);
+                    lsSetJSON(STORAGE_KEY_PRODUTOS, data);
                 }
                 ALL_PRODUTOS = data;
                 carregar_categorias(data);
@@ -576,7 +588,7 @@ function limpar_filtros() {
     renderizarFiltrosAtributos(ALL_PRODUTOS);
 
     if (!ALL_PRODUTOS || !ALL_PRODUTOS.length) {
-        ALL_PRODUTOS = JSON.parse(localStorage.getItem('calçados')) || [];
+        ALL_PRODUTOS = lsGetJSON(STORAGE_KEY_PRODUTOS, []);
     }
     mostrar_produtos(ALL_PRODUTOS);
 }
@@ -647,7 +659,7 @@ function obterResumoDescricao(texto, maxChars) {
 function abrir_modal_ver(id) {
     var dados = (ALL_PRODUTOS && ALL_PRODUTOS.length)
         ? ALL_PRODUTOS
-        : (JSON.parse(localStorage.getItem('calçados')) || []);
+       : (lsGetJSON(STORAGE_KEY_PRODUTOS, []));
     produtoAtual = dados.find(p => String(p.ID) === String(id));
     if (!produtoAtual) {
         console.warn("Produto não encontrado para ID:", id, "IDs disponíveis:", dados.slice(0, 10).map(p => p.ID));
@@ -912,7 +924,7 @@ var freteSelecionadoNome = "";
 var enderecoEntregaTemp = {};
 
 function adicionar_carrinho(id, prod, preco, img, freteGratisUF, variacao) {
-    var c = JSON.parse(localStorage.getItem('carrinho')) || [];
+   var c = lsGetJSON('carrinho', []);
     var existe = c.find(i => i.id === id);
 
     if (existe) {
@@ -928,7 +940,7 @@ function adicionar_carrinho(id, prod, preco, img, freteGratisUF, variacao) {
             variacao: variacao
         });
     }
-    localStorage.setItem('carrinho', JSON.stringify(c));
+   lsSetJSON('carrinho', c);
     atualizar_carrinho();
 
     freteCalculado = 0;
@@ -939,7 +951,7 @@ function adicionar_carrinho(id, prod, preco, img, freteGratisUF, variacao) {
 }
 
 function editar_item_carrinho(idComVariacao) {
-    var c = JSON.parse(localStorage.getItem('carrinho')) || [];
+    var c = lsGetJSON('carrinho', []);
     var item = c.find(i => i.id === idComVariacao);
 
     if (item) {
@@ -953,14 +965,14 @@ function editar_item_carrinho(idComVariacao) {
 }
 
 function mudar_quantidade(id, delta) {
-    var c = JSON.parse(localStorage.getItem('carrinho')) || [];
+   var c = lsGetJSON('carrinho', []);
     var item = c.find(i => i.id === id);
     if (item) {
         item.quantidade += delta;
         if (item.quantidade <= 0) {
             c.splice(c.findIndex(i => i.id === id), 1);
         }
-        localStorage.setItem('carrinho', JSON.stringify(c));
+        lsSetJSON('carrinho', c);
         atualizar_carrinho();
         bloquearCheckout(true);
         document.getElementById('carrinho_opcoes_frete').innerHTML = "Quantidade mudou. Recalcule o frete.";
@@ -971,9 +983,9 @@ function mudar_quantidade(id, delta) {
 }
 
 function remover_carrinho(id) {
-    var c = JSON.parse(localStorage.getItem('carrinho'));
+   var c = lsGetJSON('carrinho', []);
     c.splice(c.findIndex(i => i.id === id), 1);
-    localStorage.setItem('carrinho', JSON.stringify(c));
+    lsSetJSON('carrinho', c);
     atualizar_carrinho();
     bloquearCheckout(true);
     freteCalculado = 0;
@@ -982,7 +994,7 @@ function remover_carrinho(id) {
 }
 
 function atualizar_carrinho() {
-    var c = JSON.parse(localStorage.getItem('carrinho')) || [];
+    var c = lsGetJSON('carrinho', []);
     var div = document.getElementById('div_carrito');
     div.innerHTML = '';
     var subtotal = 0;
@@ -1068,7 +1080,7 @@ async function calcularFreteCarrinho() {
     var cep = document.getElementById('carrinho_cep').value.replace(/\D/g, '');
     if (cep.length !== 8) { alert("CEP inválido"); return; }
 
-    var carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
+    var carrinho = lsGetJSON('carrinho', []);
     if (carrinho.length === 0) return;
 
     var divOpcoes = document.getElementById('carrinho_opcoes_frete');
@@ -1089,7 +1101,7 @@ async function calcularFreteCarrinho() {
         console.warn("Falha ao buscar UF no ViaCEP", e);
     }
 
-    var todosProdutos = JSON.parse(localStorage.getItem('calçados')) || [];
+   var todosProdutos = lsGetJSON(STORAGE_KEY_PRODUTOS, []);
     var pesoTotal = 0;
     var volumeTotal = 0;
 
@@ -1228,7 +1240,7 @@ async function calcularFreteCarrinho() {
 function selecionarFrete(input) {
     freteCalculado = moneyToFloat(input.value);
     freteSelecionadoNome = input.getAttribute('data-nome');
-    var c = JSON.parse(localStorage.getItem('carrinho')) || [];
+    var c = lsGetJSON('carrinho', []);
     var subtotal = c.reduce((acc, i) => acc + (i.preco * i.quantidade), 0);
     atualizarTotalFinal(subtotal);
     bloquearCheckout(false);
@@ -1249,23 +1261,23 @@ function bloquearCheckout(bloquear) {
 }
 
 function salvarFreteCache(cep, nome, valor) {
-    try {
-        localStorage.setItem("frete_cache", JSON.stringify({
-            cep: String(cep || "").replace(/\D/g, ""),
-            nome: String(nome || ""),
-            valor: Number(valor) || 0,
-            ts: Date.now()
-        }));
-    } catch (e) { }
+    lsSetJSON("frete_cache", {
+        cep: String(cep || "").replace(/\D/g, ""),
+        nome: String(nome || ""),
+        valor: Number(valor) || 0,
+        ts: Date.now()
+    });
 }
 
+
 function limparFreteCache() {
-    try { localStorage.removeItem("frete_cache"); } catch (e) { }
+    lsRemove("frete_cache");
 }
 
 function lerFreteCache() {
-    try { return JSON.parse(localStorage.getItem("frete_cache")); } catch (e) { return null; }
+    return lsGetJSON("frete_cache", null);
 }
+
 
 
 // --- 7. CHECKOUT FINAL ---
@@ -1387,7 +1399,7 @@ function iniciarPagamentoFinal(ev) {
     }
 
 
-    var carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
+    var carrinho = lsGetJSON('carrinho', []);
     var items = carrinho.map(i => {
         var tituloCompleto = i.producto;
         if (i.variacao && i.variacao !== "Único") tituloCompleto += " - " + i.variacao;
@@ -1685,7 +1697,9 @@ function mascaraCpf(i){
 $(document).on('change', '#check_lgpd', function () {
     const ok = this.checked;
     $('#btn_buscar_identidade').prop('disabled', !ok);
+    $('#btn_buscar_identidade_div button').prop('disabled', !ok);
 });
+
 
 
 // 3. Função para buscar CEP dentro da tela de pagamento
@@ -1779,18 +1793,12 @@ function confirmarDadosExistentes(acao) {
 $(document).ready(function () {
     // Garante que o botão flutuante reapareça ao fechar qualquer modal se houver itens
     $('.modal').on('hidden.bs.modal', function () {
-        var c = JSON.parse(localStorage.getItem('carrinho')) || [];
+        var c = lsGetJSON('carrinho', []);
         if (c.length > 0) {
             $('#btn_carrinho_flutuante').fadeIn();
         }
     });
 });
-
-$(document).on('change', '#check_lgpd', function () {
-    const ok = this.checked;
-    $('#btn_buscar_identidade_div button').prop('disabled', !ok);
-});
-
 
 
 
@@ -1817,7 +1825,7 @@ function formatBRL(v) {
 
 function abrirConfirmacaoPedido(cliente, items, logisticaInfo) {
     // Preenche o modal (você precisa ter os IDs do modalConfirmacaoPedido)
-    const carrinho = JSON.parse(localStorage.getItem('carrinho')) || [];
+    const carrinho = lsGetJSON('carrinho', []);
     const subtotal = carrinho.reduce((acc, i) => acc + ((Number(i.preco) || 0) * (Number(i.quantidade) || 1)), 0);
     const frete = Number(freteCalculado) || 0;
     const total = subtotal + frete;
@@ -1946,11 +1954,11 @@ const TEMPO_SESSAO_MS = 10 * 60 * 1000;
 
 function salvarSessao(cpf) {
     const dados = { cpf: cpf, validade: Date.now() + TEMPO_SESSAO_MS };
-    localStorage.setItem("sessao_cliente", JSON.stringify(dados));
+    lsSetJSON("sessao_cliente", dados);
 }
 
 function verificarSessaoAtiva() {
-    const sessao = JSON.parse(localStorage.getItem("sessao_cliente"));
+    const sessao = lsGetJSON("sessao_cliente", null);
     if (sessao && sessao.cpf && Date.now() < sessao.validade) {
         // Renova a sessão por mais 10 min a cada acesso
         salvarSessao(sessao.cpf);
@@ -1960,7 +1968,7 @@ function verificarSessaoAtiva() {
 }
 
 function logoutSessao() {
-    localStorage.removeItem("sessao_cliente");
+    lsRemove("sessao_cliente");
     location.reload();
 }
 
@@ -2201,23 +2209,13 @@ document.addEventListener("DOMContentLoaded", function () {
         busca.addEventListener('input', filtrarProdutos);
         busca.addEventListener('search', () => filtrarProdutos()); 
 
-        busca.addEventListener('keydown', (e) => {
-            if (e.key === "Enter") {
-                e.preventDefault();
-                filtrarProdutos();
-            }
-            // ✅ Quando abrir/fechar o offcanvas de filtros, esconde/mostra carrinho flutuante
-            const offEl = document.getElementById('offcanvasFiltros');
-            if (offEl) {
-                offEl.addEventListener('show.bs.offcanvas', () => {
-                    document.body.classList.add('filtros-abertos');
-                });
+busca.addEventListener('keydown', (e) => {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        filtrarProdutos();
+    }
+});
 
-                offEl.addEventListener('hidden.bs.offcanvas', () => {
-                    document.body.classList.remove('filtros-abertos');
-                });
-            }
-        });
     }
 
     // ✅ BUSCA MOBILE
@@ -2245,6 +2243,19 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     sincronizarBuscaEntreCampos();
+
+    // ✅ Offcanvas de filtros: registra UMA vez (evita duplicar a cada tecla)
+const offEl = document.getElementById('offcanvasFiltros');
+if (offEl) {
+    offEl.addEventListener('show.bs.offcanvas', () => {
+        document.body.classList.add('filtros-abertos');
+    });
+
+    offEl.addEventListener('hidden.bs.offcanvas', () => {
+        document.body.classList.remove('filtros-abertos');
+    });
+}
+
 
     // submit do form mobile
     const formBuscaMob = document.getElementById('form_busca_mobile');
