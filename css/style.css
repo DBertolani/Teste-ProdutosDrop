@@ -75,3 +75,11 @@ body {
   display: block;
 }
 
+/* Mobile: submenu por clique, não hover */
+@media (max-width: 991px) {
+  .dropdown-submenu > .dropdown-menu {
+    position: static;
+    margin-left: 0;
+  }
+}
+
