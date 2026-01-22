@@ -503,7 +503,7 @@ function renderMenuHierarquico_(menuEl, tree, separador) {
     const li = document.createElement("li");
     li.className = "dropdown-submenu";
     li.innerHTML = `
-      <a class="dropdown-item dropdown-toggle" href="#" onclick="event.preventDefault()">${dep}</a>
+      <a class="dropdown-item dropdown-toggle" href="#" onclick="toggleSubmenuMobile(event)">${dep}</a>
       <ul class="dropdown-menu">
         <li><a class="dropdown-item fw-bold" href="#" onclick="mostrar_produtos_por_departamento('${escapeJs_(dep)}','${escapeJs_(separador)}'); fechar_menu_mobile()">Ver ${dep}</a></li>
         <li><hr class="dropdown-divider"></li>
@@ -573,6 +573,28 @@ function mostrar_produtos_por_categoria(cat) {
     var filtrados = dados.filter(p => p.Categoria === cat);
     mostrar_produtos(filtrados);
 }
+
+function toggleSubmenuMobile(ev){
+  ev.preventDefault();
+  ev.stopPropagation();
+
+  const a = ev.currentTarget;
+  const li = a.closest(".dropdown-submenu");
+  if(!li) return;
+
+  const submenu = li.querySelector(".dropdown-menu");
+  if(!submenu) return;
+
+  // Fecha outros submenus abertos (opcional, mas recomendado)
+  li.parentElement.querySelectorAll(".dropdown-submenu .dropdown-menu")
+    .forEach(ul => {
+      if (ul !== submenu) ul.style.display = "none";
+    });
+
+  // Toggle
+  submenu.style.display = (submenu.style.display === "block") ? "none" : "block";
+}
+
 
 function fechar_menu_mobile() {
     var navMain = document.getElementById("navbarCollapse");
