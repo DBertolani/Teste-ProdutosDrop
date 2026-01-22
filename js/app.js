@@ -514,6 +514,7 @@ function renderMenuHierarquico_(menuEl, tree, separador) {
     `;
     menuEl.appendChild(li);
   });
+
 }
 
 function escapeJs_(s){
@@ -575,6 +576,7 @@ function mostrar_produtos_por_categoria(cat) {
 }
 
 function toggleSubmenuMobile(ev){
+     if (window.innerWidth > 991) return; // só mobile
   ev.preventDefault();
   ev.stopPropagation();
 
@@ -2582,4 +2584,5 @@ if (offEl) {
             });
         }
     });
-});
+
+        });
