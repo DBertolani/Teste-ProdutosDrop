@@ -437,8 +437,13 @@ const temHierarquia = (produtos || []).some(p => (p.Categoria || "").toString().
 if (temHierarquia) {
   const tree = buildCategoryTree_(produtos, sep);
   renderMenuHierarquico_(menu, tree, sep);
+
+  // ✅ também renderiza menu mobile no offcanvas
+  renderMenuMobileOffcanvas_(produtos);
+
   return; // não cai no menu simples
 }
+
 
 
     const categorias = [...new Set(produtos.map(p => p.Categoria))].filter(c => c);
@@ -449,6 +454,10 @@ if (temHierarquia) {
             menu.appendChild(li);
         });
     }
+
+// ✅ também renderiza menu mobile no offcanvas (não mexe no desktop)
+renderMenuMobileOffcanvas_(produtos);
+
 }
 
 // ===== MENU HIERÁRQUICO (adição segura) =====
@@ -516,6 +525,94 @@ function renderMenuHierarquico_(menuEl, tree, separador) {
   });
 
 }
+
+// ===== MENU MOBILE (OFFCANVAS + ACCORDION) =====
+function fecharMenuMobileOffcanvas_() {
+  const el = document.getElementById("menuMobileOffcanvas");
+  if (!el) return;
+  const inst = bootstrap.Offcanvas.getInstance(el) || bootstrap.Offcanvas.getOrCreateInstance(el);
+  inst.hide();
+}
+
+function renderMenuMobileOffcanvas_(produtos) {
+  const host = document.getElementById("menuMobileConteudo");
+  if (!host) return;
+
+  const sep = (CONFIG_LOJA.SeparadorCategoria || ">").toString();
+  const temHierarquia = (produtos || []).some(p => (p.Categoria || "").toString().includes(sep));
+
+  // se não tem hierarquia, renderiza lista simples
+  if (!temHierarquia) {
+    const categorias = [...new Set((produtos || []).map(p => p.Categoria))].filter(c => c);
+    host.innerHTML = `
+      <div class="list-group">
+        ${categorias.map(cat => `
+          <a href="#" class="list-group-item list-group-item-action"
+             onclick="mostrar_produtos_por_categoria('${escapeJs_(cat)}'); fecharMenuMobileOffcanvas_(); return false;">
+            ${cat}
+          </a>
+        `).join("")}
+      </div>
+    `;
+    return;
+  }
+
+  // hierárquico -> accordion
+  const tree = buildCategoryTree_(produtos, sep);
+  const departamentos = Object.keys(tree || {});
+  if (!departamentos.length) { host.innerHTML = ""; return; }
+
+  let html = `<div class="accordion" id="accCatsMobile">`;
+
+  departamentos.forEach((dep, idx) => {
+    const subs = tree[dep] || [];
+    const colId = `accMobCol_${idx}`;
+
+    if (!subs.length) {
+      html += `
+        <div class="mb-2">
+          <button class="btn btn-outline-secondary w-100 text-start"
+            onclick="mostrar_produtos_por_departamento('${escapeJs_(dep)}','${escapeJs_(sep)}'); fecharMenuMobileOffcanvas_();">
+            ${dep}
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    html += `
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button"
+            data-bs-toggle="collapse" data-bs-target="#${colId}">
+            ${dep}
+          </button>
+        </h2>
+        <div id="${colId}" class="accordion-collapse collapse" data-bs-parent="#accCatsMobile">
+          <div class="accordion-body p-2">
+            <div class="d-grid gap-2">
+              <button class="btn btn-outline-primary btn-sm text-start"
+                onclick="mostrar_produtos_por_departamento('${escapeJs_(dep)}','${escapeJs_(sep)}'); fecharMenuMobileOffcanvas_();">
+                Ver ${dep}
+              </button>
+
+              ${subs.map(s => `
+                <button class="btn btn-outline-secondary btn-sm text-start"
+                  onclick="mostrar_produtos_por_categoria_hier('${escapeJs_(dep)}','${escapeJs_(s)}','${escapeJs_(sep)}'); fecharMenuMobileOffcanvas_();">
+                  ${s}
+                </button>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+  host.innerHTML = html;
+}
+
 
 function escapeJs_(s){
   return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'");
@@ -599,11 +696,16 @@ function toggleSubmenuMobile(ev){
 
 
 function fechar_menu_mobile() {
-    var navMain = document.getElementById("navbarCollapse");
-    if (navMain.classList.contains('show')) {
-        document.querySelector('.navbar-toggler').click();
-    }
+  const navMain = document.getElementById("navbarCollapse");
+  if (!navMain) return;
+
+  // fecha apenas se estiver aberto
+  if (navMain.classList.contains("show")) {
+    const inst = bootstrap.Collapse.getInstance(navMain) || bootstrap.Collapse.getOrCreateInstance(navMain);
+    inst.hide();
+  }
 }
+
 
 var FILTROS_ATRIB = new Set();
 
