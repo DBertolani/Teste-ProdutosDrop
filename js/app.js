@@ -430,6 +430,17 @@ function carregar_categorias(produtos) {
 
     if (CONFIG_LOJA.MostrarCategorias === "FALSE") return;
 
+    // Se detectar categorias no formato "Depto > Sub", usa menu hierárquico
+const sep = (CONFIG_LOJA.SeparadorCategoria || ">").toString();
+const temHierarquia = (produtos || []).some(p => (p.Categoria || "").toString().includes(sep));
+
+if (temHierarquia) {
+  const tree = buildCategoryTree_(produtos, sep);
+  renderMenuHierarquico_(menu, tree, sep);
+  return; // não cai no menu simples
+}
+
+
     const categorias = [...new Set(produtos.map(p => p.Categoria))].filter(c => c);
     if (categorias.length > 0) {
         categorias.forEach(cat => {
@@ -439,6 +450,120 @@ function carregar_categorias(produtos) {
         });
     }
 }
+
+// ===== MENU HIERÁRQUICO (adição segura) =====
+function buildCategoryTree_(produtos, separador) {
+  separador = separador || ">";
+  const tree = {}; // {Depto: Set(subcats)}
+
+  (produtos || []).forEach(p => {
+    const raw = (p.Categoria || "").toString().trim();
+    if (!raw) return;
+
+    const parts = raw.split(separador).map(s => s.trim()).filter(Boolean);
+    const depto = (parts[0] || "Outros").trim();
+    const sub = (parts[1] || "").trim();
+
+    if (!tree[depto]) tree[depto] = new Set();
+    if (sub) tree[depto].add(sub);
+  });
+
+  // converte Set->Array ordenado
+  const out = {};
+  Object.keys(tree).sort().forEach(dep => {
+    out[dep] = Array.from(tree[dep]).sort();
+  });
+  return out;
+}
+
+function renderMenuHierarquico_(menuEl, tree, separador) {
+  separador = separador || ">";
+  // Item "Ver Todos"
+  menuEl.innerHTML = `
+    <li><a class="dropdown-item fw-bold" href="#" onclick="limpar_filtros(); fechar_menu_mobile()">Ver Todos</a></li>
+    <li><hr class="dropdown-divider"></li>
+  `;
+
+  const departamentos = Object.keys(tree || {});
+  if (!departamentos.length) return;
+
+  // Bootstrap 5 não tem multi-level dropdown “oficial”.
+  // Então fazemos um submenu simples via CSS + hover/focus (precisa 2 estilos no index.html — te passo abaixo).
+  departamentos.forEach(dep => {
+    const subs = tree[dep] || [];
+
+    if (!subs.length) {
+      // sem subcategoria: filtra pelo próprio departamento (ex: "Masculino")
+      const li = document.createElement("li");
+      li.innerHTML = `<a class="dropdown-item" href="#" onclick="mostrar_produtos_por_departamento('${escapeJs_(dep)}','${escapeJs_(separador)}'); fechar_menu_mobile()">${dep}</a>`;
+      menuEl.appendChild(li);
+      return;
+    }
+
+    const li = document.createElement("li");
+    li.className = "dropdown-submenu";
+    li.innerHTML = `
+      <a class="dropdown-item dropdown-toggle" href="#" onclick="event.preventDefault()">${dep}</a>
+      <ul class="dropdown-menu">
+        <li><a class="dropdown-item fw-bold" href="#" onclick="mostrar_produtos_por_departamento('${escapeJs_(dep)}','${escapeJs_(separador)}'); fechar_menu_mobile()">Ver ${dep}</a></li>
+        <li><hr class="dropdown-divider"></li>
+        ${subs.map(s => `
+          <li><a class="dropdown-item" href="#" onclick="mostrar_produtos_por_categoria_hier('${escapeJs_(dep)}','${escapeJs_(s)}','${escapeJs_(separador)}'); fechar_menu_mobile()">${s}</a></li>
+        `).join("")}
+      </ul>
+    `;
+    menuEl.appendChild(li);
+  });
+}
+
+function escapeJs_(s){
+  return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+}
+
+function obterProdutosFonte_() {
+  // 1) prioriza memória (mais rápido)
+  if (Array.isArray(ALL_PRODUTOS) && ALL_PRODUTOS.length) return ALL_PRODUTOS;
+
+  // 2) fallback para cache SAFE
+  return lsGetJSON(STORAGE_KEY_PRODUTOS, []);
+}
+
+function mostrar_produtos_por_departamento(dep, separador) {
+  separador = (separador || (CONFIG_LOJA.SeparadorCategoria || ">")).toString();
+
+  const dados = obterProdutosFonte_();
+
+  const depNorm = normalizarTexto(dep);
+  const filtrados = dados.filter(p => {
+    const cat = (p.Categoria || "").toString();
+    const parts = cat.split(separador).map(x => x.trim());
+    const d = parts[0] || "";
+    return normalizarTexto(d) === depNorm;
+  });
+
+  mostrar_produtos(filtrados);
+}
+
+function mostrar_produtos_por_categoria_hier(dep, sub, separador) {
+  separador = (separador || (CONFIG_LOJA.SeparadorCategoria || ">")).toString();
+
+  const dados = obterProdutosFonte_();
+
+  const depNorm = normalizarTexto(dep);
+  const subNorm = normalizarTexto(sub);
+
+  const filtrados = dados.filter(p => {
+    const cat = (p.Categoria || "").toString();
+    const parts = cat.split(separador).map(x => x.trim());
+    const d = parts[0] || "";
+    const s = parts[1] || "";
+    return normalizarTexto(d) === depNorm && normalizarTexto(s) === subNorm;
+  });
+
+  mostrar_produtos(filtrados);
+}
+
+
 
 function mostrar_produtos_por_categoria(cat) {
     var dados = (ALL_PRODUTOS && ALL_PRODUTOS.length)
