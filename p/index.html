@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Abrindo oferta…</title>
+</head>
+<body>
+<script>
+  // Exemplo:
+  // https://seusite.com/p/123  →  https://seusite.com/?p=123
+  const parts = location.pathname.split("/").filter(Boolean);
+  const id = parts[1] || ""; // parts[0]="p", parts[1]=ID
+
+  if (id) {
+    location.replace("/?p=" + encodeURIComponent(id));
+  } else {
+    location.replace("/");
+  }
+</script>
+</body>
+</html>
