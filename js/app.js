@@ -88,6 +88,7 @@ function lsSetJSON(key, obj) {
 
 // Variável global para guardar as configurações da planilha
 var CONFIG_LOJA = {};
+var FORNECEDORES_MAP = {};
 var dadosClienteTemp = {};
 
 function S(v) {
@@ -357,6 +358,7 @@ if (podeUsarStorage()) {
             
             CONFIG_LOJA = config;
             aplicar_config();
+            carregar_fornecedores();
             carregar_produtos();
         })
             .catch(e => {
@@ -364,6 +366,27 @@ if (podeUsarStorage()) {
             carregar_produtos(); // CHAMADA DE EMERGÊNCIA: Garante que os produtos carreguem mesmo se a config falhar
         });
 }
+
+function carregar_fornecedores() {
+  const url = CONFIG.SCRIPT_URL + "?rota=fornecedores&nocache=" + Date.now();
+
+  fetch(url)
+    .then(r => r.json())
+    .then(d => {
+      if (!d.ok || !Array.isArray(d.itens)) {
+        console.warn("Fornecedores não carregados");
+        return;
+      }
+
+      d.itens.forEach(f => {
+        FORNECEDORES_MAP[f.nome] = f;
+      });
+
+      console.log("FORNECEDORES_MAP carregado:", FORNECEDORES_MAP);
+    })
+    .catch(e => console.error("Erro fornecedores:", e));
+}
+
 
 // --- ACESSIBILIDADE: calcula cor de texto (preto/branco) com bom contraste ---
 function hexToRgb(hex) {
@@ -1322,14 +1345,26 @@ function simular_frete_produto_individual(produto) {
 
     var subsidio = parseFloat(CONFIG_LOJA.SubsidioFrete || 0);
 
-    var dadosFrete = {
-        op: "calcular_frete",
-        cep: cep,
-        peso: produto.Peso || 0.9,
-        comprimento: produto.Comprimento || 20,
-        altura: produto.Altura || 15,
-        largura: produto.Largura || 20
-    };
+        var cepOrigemFornecedor =
+          FORNECEDORES_MAP[produto.Fornecedor]?.cep ||
+          CONFIG_LOJA.CEPPadrao;
+        
+        console.log("Frete individual:", {
+          produto: produto.Produto,
+          fornecedor: produto.Fornecedor,
+          cep_origem: cepOrigemFornecedor
+        });
+        
+        var dadosFrete = {
+          op: "calcular_frete",
+          cep: cep,
+          cep_origem: cepOrigemFornecedor,
+          peso: produto.Peso || 0.9,
+          comprimento: produto.Comprimento || 20,
+          altura: produto.Altura || 15,
+          largura: produto.Largura || 20
+        };
+
 
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
