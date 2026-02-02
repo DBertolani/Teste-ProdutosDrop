@@ -1,5 +1,5 @@
 // --- CONTROLE DE VERSÃO E CACHE (MODO SEGURO) ---
-const VERSAO_SISTEMA = "2026-01-20_v5"; 
+const VERSAO_SISTEMA = "2026-01-20_v6"; 
 const STORAGE_KEY_PRODUTOS = "produtos_cache";
 
 
@@ -1037,7 +1037,14 @@ function mostrar_produtos(produtos) {
     if (CONFIG_LOJA.ColunasDesktop == 3) colClass = 'col-md-4';
     if (CONFIG_LOJA.ColunasDesktop == 2) colClass = 'col-md-6';
 
-    produtos.forEach(p => {
+        produtos.forEach(p => {
+                // ✅ NOVO: FILTRO DE STATUS
+                // Normaliza para minúsculo para aceitar "Ativo", "ativo" ou "ATIVO"
+                // Se tiver algo escrito em Status e NÃO for "ativo", ele ignora o produto.
+                if (p.Status && String(p.Status).trim().toLowerCase() !== "ativo") {
+                    return;
+                }
+
         var altText = p.Produto + " - " + p.Categoria;
         var infoExtra = (p.Tamanhos || p.Variacoes) ? `<small>Opções disponíveis</small>` : '';
         const imgCard = ajustarImagemDrive(p.ImagemPrincipal, 500);
