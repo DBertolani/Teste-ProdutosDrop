@@ -2,6 +2,10 @@
 const VERSAO_SISTEMA = "2026-01-20_v6"; 
 const STORAGE_KEY_PRODUTOS = "produtos_cache";
 
+window.APP_VERSAO = VERSAO_SISTEMA;
+console.log("[APP] Versão carregada:", VERSAO_SISTEMA);
+
+
 
 // --- NOVO MODO DE SEGURANÇA MÁXIMA ---
 function podeUsarStorage() {
