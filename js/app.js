@@ -1,28 +1,61 @@
 // --- CONTROLE DE VERSÃO E CACHE (MODO SEGURO) ---
-const VERSAO_SISTEMA = "2026-01-20_v6"; 
+const VERSAO_SISTEMA = "2026-02-03_v6_ativados";
 const STORAGE_KEY_PRODUTOS = "produtos_cache";
 
-window.APP_VERSAO = VERSAO_SISTEMA;
-console.log("[APP] Versão carregada:", VERSAO_SISTEMA);
 
 
+// --- NOVO MODO DE SEGURANÇA MÁXIMA (com cache de resultado) ---
+let __STORAGE_OK = null;
 
-// --- NOVO MODO DE SEGURANÇA MÁXIMA ---
-function podeUsarStorage() {
-    try {
-        // Verifica se a propriedade existe e se não é bloqueada
-        if (typeof localStorage === 'undefined' || localStorage === null) return false;
-        localStorage.setItem('teste_storage', '1');
-        localStorage.removeItem('teste_storage');
-        return true;
-    } catch (e) {
-        // Se cair aqui, o Tracking Prevention bloqueou
-        console.warn("Acesso ao Storage bloqueado pelo navegador.");
-        return false;
-    }
+// --- FILTRO VIA URL (?cat=...) ---
+let __CAT_PENDENTE_URL = null;
+
+function lerCategoriaDaUrl_() {
+  try {
+    const url = new URL(window.location.href);
+    const cat = url.searchParams.get("cat");
+    if (!cat) return null;
+    // cat já vem decodificado pelo URLSearchParams, mas garantimos:
+    return String(cat).trim();
+  } catch (e) {
+    return null;
+  }
 }
 
-// Substitua seu bloco de limpeza de cache por este (SAFE + sem erro de sintaxe):
+// remove o "#" desnecessário e mantém a URL limpa
+function limparHashDaUrl_() {
+  if (window.location.hash === "#") {
+    history.replaceState({}, "", window.location.pathname + window.location.search);
+  }
+}
+
+// ajuste aqui para o separador que você usa nas categorias
+function normalizarCatUrl_(catUrl) {
+  // Ex.: "Calçados>Sapatenis"
+  return String(catUrl || "").trim();
+}
+
+
+function podeUsarStorage() {
+  if (__STORAGE_OK !== null) return __STORAGE_OK;
+
+  try {
+    if (typeof localStorage === "undefined" || localStorage === null) {
+      __STORAGE_OK = false;
+      return false;
+    }
+    localStorage.setItem("__t", "1");
+    localStorage.removeItem("__t");
+    __STORAGE_OK = true;
+    return true;
+  } catch (e) {
+    console.warn("Acesso ao Storage bloqueado pelo navegador.");
+    __STORAGE_OK = false;
+    return false;
+  }
+}
+
+
 try {
   if (podeUsarStorage()) {
     const versaoAtual = lsGetRaw("versao_cache"); // usa helper safe
@@ -34,10 +67,14 @@ try {
       lsRemove("frete_cache");
       lsRemove("sessao_cliente");
 
+      // ✅ LIMPA CACHE EM MEMÓRIA TAMBÉM
+      ALL_PRODUTOS = [];
+
       lsSetRaw("versao_cache", VERSAO_SISTEMA); // usa helper safe
     }
   }
 } catch (e) {}
+
 
 
 
@@ -88,11 +125,26 @@ function lsSetJSON(key, obj) {
   }
 }
 
+// --- FALLBACK DO CARRINHO EM MEMÓRIA ---
+// usado apenas quando localStorage estiver bloqueado
+let __CARRINHO_MEM = [];
+
+function carrinhoGet_() {
+  const c = lsGetJSON("carrinho", null);
+  return Array.isArray(c) ? c : __CARRINHO_MEM;
+}
+
+function carrinhoSet_(arr) {
+  if (!lsSetJSON("carrinho", arr)) {
+    __CARRINHO_MEM = Array.isArray(arr) ? arr : [];
+  }
+}
+
+
 
 
 // Variável global para guardar as configurações da planilha
 var CONFIG_LOJA = {};
-var FORNECEDORES_MAP = {};
 var dadosClienteTemp = {};
 
 function S(v) {
@@ -116,6 +168,79 @@ function parseRouteFromUrl_() {
     return { produtoId: "", cat: "" };
   }
 }
+
+// ===============================
+// 🔗 ROUTER (Links diretos) - Busca e Atributos
+// ===============================
+function getBuscaFromUrl_() {
+  try {
+    const u = new URL(window.location.href);
+    return (u.searchParams.get("q") || "").trim();
+  } catch(e) { return ""; }
+}
+
+// a=tenis,couro,masculino (normalizados)
+function getAtributosFromUrl_() {
+  try {
+    const u = new URL(window.location.href);
+    const raw = (u.searchParams.get("a") || "").trim();
+    if (!raw) return [];
+    return raw.split(",").map(s => normalizarTexto(s)).filter(Boolean);
+  } catch(e) { return []; }
+}
+
+function temRouteAtiva_() {
+  const r = ROUTE_PENDING || parseRouteFromUrl_();
+  const hasCat = !!String(r.cat || "").trim();
+  const hasProd = !!String(r.produtoId || "").trim();
+  const hasQ = !!String(getBuscaFromUrl_() || "").trim();
+  const hasA = (getAtributosFromUrl_() || []).length > 0;
+  return hasCat || hasProd || hasQ || hasA;
+}
+
+
+function setBuscaToUrl_(texto, mode) {
+  const v = String(texto || "").trim();
+  setUrlParams_({ q: v }, mode || "push");
+}
+
+function clearBuscaFromUrl_(mode) {
+  setUrlParams_({ q: "" }, mode || "replace");
+}
+
+function setAtributosToUrl_(setOrArray, mode) {
+  const arr = Array.isArray(setOrArray) ? setOrArray : Array.from(setOrArray || []);
+  const compact = arr.map(a => normalizarTexto(a)).filter(Boolean).join(",");
+  setUrlParams_({ a: compact }, mode || "push");
+}
+
+function clearAtributosFromUrl_(mode) {
+  setUrlParams_({ a: "" }, mode || "replace");
+}
+
+// aplica q + a no UI e executa filtro
+function aplicarBuscaEAtributosFromUrl_() {
+  // 1) Busca
+  const q = getBuscaFromUrl_();
+  if (q) {
+    const desk = document.getElementById('txt_search');
+    const mob  = document.getElementById('txt_search_mobile');
+    if (desk) desk.value = q;
+    if (mob)  mob.value  = q;
+  }
+
+  // 2) Atributos
+  const attrs = getAtributosFromUrl_();
+  FILTROS_ATRIB.clear();
+  attrs.forEach(a => FILTROS_ATRIB.add(a));
+
+  // 3) re-render filtros para marcar checks corretamente
+  renderizarFiltrosAtributos(obterProdutosFonte_());
+
+  // 4) filtra lista final
+  filtrarProdutos();
+}
+
 
 function normalizeCatKey_(catStr, sep) {
   sep = (sep || (CONFIG_LOJA.SeparadorCategoria || ">")).toString();
@@ -164,12 +289,18 @@ function clearCategoriaFromUrl_(mode) {
 }
 
 function setCategoriaToUrl_(catRaw, mode) {
-  // salva num formato estável, sem depender de espaços: "Pai>Sub"
   const sep = (CONFIG_LOJA.SeparadorCategoria || ">").toString();
   const parts = String(catRaw || "").split(sep).map(s => s.trim()).filter(Boolean);
   const compact = parts.join(sep);
-  setUrlParams_({ cat: compact, produto: "", p: "" }, mode || "push");
+
+  // ✅ limpa busca e atributos quando define categoria
+  setUrlParams_({
+    cat: compact,
+    produto: "", p: "",
+    q: "", a: ""
+  }, mode || "push");
 }
+
 
 function setProdutoToUrl_(id, mode) {
   setUrlParams_({ produto: String(id || "").trim() }, mode || "push");
@@ -190,6 +321,23 @@ function aplicarRouteSePronto_() {
   const produtoId = (ROUTE_PENDING.produtoId || "").trim();
   const catParam = (ROUTE_PENDING.cat || "").trim();
 
+  // ✅ NOVO: se veio categoria na URL, limpa busca e atributos
+  // (senão a busca/atributos podem "sobrescrever" e mostrar o catálogo geral)
+  if (catParam) {
+    // limpa params da URL
+    clearBuscaFromUrl_("replace");
+    clearAtributosFromUrl_("replace");
+
+    // limpa inputs de busca
+    const desk = document.getElementById('txt_search');
+    const mob  = document.getElementById('txt_search_mobile');
+    if (desk) desk.value = "";
+    if (mob)  mob.value  = "";
+
+    // limpa filtros de atributos em memória
+    FILTROS_ATRIB.clear();
+  }
+
   // 1) Categoria
   if (catParam) {
     const catOriginal = findOriginalCategory_(catParam, sep);
@@ -204,19 +352,24 @@ function aplicarRouteSePronto_() {
         mostrar_produtos_por_categoria(catOriginal);
       }
     } else {
-      // Se não achou, não quebra o site; só segue normal
       console.warn("Categoria do link não encontrada:", catParam);
     }
   }
 
   // 2) Produto (tem prioridade visual: abre modal)
   if (produtoId) {
-    // abrir_modal_ver já busca pelo ID e abre modal
     abrir_modal_ver(produtoId);
+  }
+
+  // 3) Busca + atributos (aplica depois de carregar produtos)
+  // ✅ IMPORTANTE: se veio catParam, não aplica busca/atributos por cima
+  if (!catParam) {
+    aplicarBuscaEAtributosFromUrl_();
   }
 
   ROUTE_APLICADA = true;
 }
+
 
 
 function moneyToFloat(v) {
@@ -263,6 +416,123 @@ function moneyToFloat(v) {
 // --- BUSCA INTELIGENTE (Nome + Categoria + Descrição) ---
 var ALL_PRODUTOS = [];
 
+// ===============================
+// ✅ LAZY LOAD de imagens da pasta (Drive)
+// ===============================
+const FOLDER_IMG_TTL_MS = 6 * 60 * 60 * 1000; // 6h
+const __FOLDER_IMG_MEM = new Map(); // cache em memória
+
+function extrairIdPastaUrl_(url) {
+  try {
+    const s = String(url || "");
+    if (!s.includes("/folders/")) return "";
+    return s.split("/folders/")[1].split(/[?\/]/)[0] || "";
+  } catch(e) { return ""; }
+}
+
+function isFolderToken_(s) {
+  return String(s || "").includes("/folders/");
+}
+
+// cache opcional em localStorage (se permitido)
+function folderCacheGet_(folderId) {
+  try {
+    if (!podeUsarStorage()) return null;
+    const raw = lsGetRaw("folder_imgs_" + folderId);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || !obj.ts || !Array.isArray(obj.imagens)) return null;
+    if (Date.now() - obj.ts > FOLDER_IMG_TTL_MS) return null;
+    return obj.imagens;
+  } catch(e) { return null; }
+}
+
+function folderCacheSet_(folderId, imagens) {
+  try {
+    if (!podeUsarStorage()) return;
+    lsSetRaw("folder_imgs_" + folderId, JSON.stringify({ ts: Date.now(), imagens: imagens || [] }));
+  } catch(e) {}
+}
+
+async function carregarImagensDaPasta_(folderId) {
+  if (!folderId) return [];
+
+  // 1) memória
+  if (__FOLDER_IMG_MEM.has(folderId)) return __FOLDER_IMG_MEM.get(folderId);
+
+  // 2) localStorage
+  const fromLs = folderCacheGet_(folderId);
+  if (fromLs && fromLs.length) {
+    __FOLDER_IMG_MEM.set(folderId, fromLs);
+    return fromLs;
+  }
+
+  // 3) rede (Apps Script)
+  const url = CONFIG.SCRIPT_URL + `?rota=imagens_pasta&folder=${encodeURIComponent(folderId)}&nocache=` + Date.now();
+  const r = await fetch(url);
+  const j = await r.json();
+
+  if (!j || !j.ok || !Array.isArray(j.imagens)) return [];
+
+  __FOLDER_IMG_MEM.set(folderId, j.imagens);
+  folderCacheSet_(folderId, j.imagens);
+  return j.imagens;
+}
+
+function dedupeLista_(arr) {
+  const seen = new Set();
+  const out = [];
+  (arr || []).forEach(x => {
+    const s = String(x || "").trim();
+    if (!s) return;
+    const key = s.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(s);
+  });
+  return out;
+}
+
+function renderCarouselImagens_(containerImagens, listaUrls) {
+  if (!containerImagens) return;
+
+  const imgsLimpa = (listaUrls || []).map(s => String(s || "").trim()).filter(s => s.length > 4);
+
+  // lista para viewer (maior, otimizada)
+  const imgsViewer = imgsLimpa.map(s => ajustarImagemDrive(s, 1600));
+
+  containerImagens.innerHTML = "";
+
+  imgsLimpa.forEach((src, idx) => {
+    const div = document.createElement("div");
+    const srcAjustado = ajustarImagemDrive(src, 1200);
+    div.className = (idx === 0) ? "carousel-item active" : "carousel-item";
+
+    div.innerHTML = `
+      <img
+        src="${srcAjustado}"
+        class="d-block w-100"
+        width="900"
+        height="300"
+        decoding="async"
+        style="height: 300px; object-fit: contain; background: #f8f9fa; cursor: zoom-in;"
+        onclick='abrirViewerImagens(${JSON.stringify(imgsViewer)}, ${idx}, "Galeria")'
+      >
+    `;
+    containerImagens.appendChild(div);
+  });
+
+  // ✅ AJUSTE: garante que o Bootstrap Carousel esteja inicializado após re-render
+  try {
+    const carouselEl = containerImagens.closest(".carousel");
+    if (carouselEl) {
+      bootstrap.Carousel.getInstance(carouselEl) || new bootstrap.Carousel(carouselEl);
+    }
+  } catch (e) {}
+}
+
+
+
 function normalizarTexto(s) {
     return String(s || "")
         .toLowerCase()
@@ -271,33 +541,83 @@ function normalizarTexto(s) {
         .trim();
 }
 
+// ===============================
+// ✅ FILTRO: somente produtos "Ativado" na planilha
+// - Compatível com colunas: Status / Ativo / Ativado / Publicar / Exibir / Visivel...
+// - Se NÃO existir nenhuma dessas colunas, mantém o comportamento atual (mostra todos).
+// ===============================
+function getCampoAtivacao_(p) {
+  if (!p || typeof p !== "object") return "";
+
+  // tenta achar um campo conhecido (com variações comuns)
+  return (
+    p.Status ?? p.status ??
+    p.Ativado ?? p.ativado ??
+    p.Ativo ?? p.ativo ??
+    p.Publicar ?? p.publicar ??
+    p.Exibir ?? p.exibir ??
+    p.Visivel ?? p.visivel ??
+    p["Ativação"] ?? p["Ativacao"] ??
+    ""
+  );
+}
+
+function filtrarSomenteAtivados_(lista) {
+  if (!Array.isArray(lista)) return [];
+
+  // Se nenhum item tiver campo de ativação, não filtra (para não “sumir tudo”)
+  const alguemTemCampo = lista.some(p => {
+    const v = getCampoAtivacao_(p);
+    return v !== null && v !== undefined && String(v).trim() !== "";
+  });
+  if (!alguemTemCampo) return lista;
+
+  return lista.filter(p => {
+    const v = normalizarTexto(getCampoAtivacao_(p));
+    // Aceita "Ativado" (principal), e também variações comuns
+    return (
+      v === "ativado" || v === "ativo" ||
+      v === "sim" || v === "true" || v === "1" ||
+      v === "publicar" || v === "publicado" ||
+      v === "on"
+    );
+  });
+}
+
+
 function filtrarProdutos() {
-    const termo = normalizarTexto(obterTermoBusca());
+  const termo = normalizarTexto(obterTermoBusca());
 
-if (!Array.isArray(ALL_PRODUTOS) || ALL_PRODUTOS.length === 0) {
+  if (!Array.isArray(ALL_PRODUTOS) || ALL_PRODUTOS.length === 0) {
     ALL_PRODUTOS = lsGetJSON(STORAGE_KEY_PRODUTOS, []);
+  }
+
+  const filtrados = ALL_PRODUTOS.filter(p => {
+    const nome = normalizarTexto(p.Produto);
+    const cat = normalizarTexto(p.Categoria);
+    const desc = normalizarTexto(p.Descrição);
+
+    const attrs = extrairAtributosDeProduto(p);
+    const passaAtributos =
+      (FILTROS_ATRIB.size === 0) ||
+      Array.from(FILTROS_ATRIB).every(f => attrs.includes(f));
+
+    const passaTexto =
+      !termo || nome.includes(termo) || cat.includes(termo) || desc.includes(termo);
+
+    return passaAtributos && passaTexto;
+  });
+
+  mostrar_produtos(filtrados);
+
+  // ✅ NOVO: se está usando busca/filtros, o link deve ser de busca/filtro (não de categoria)
+  clearCategoriaFromUrl_("replace");
+  clearProdutoFromUrl_("replace");
+
+  setBuscaToUrl_(obterTermoBusca(), "replace");
+  setAtributosToUrl_(FILTROS_ATRIB, "replace");
 }
 
-    const filtrados = ALL_PRODUTOS.filter(p => {
-        const nome = normalizarTexto(p.Produto);
-        const cat = normalizarTexto(p.Categoria);
-        const desc = normalizarTexto(p.Descrição);
-
-        // ✅ filtro por atributos (se tiver algum marcado)
-        const attrs = extrairAtributosDeProduto(p);
-        const passaAtributos =
-            (FILTROS_ATRIB.size === 0) ||
-            Array.from(FILTROS_ATRIB).every(f => attrs.includes(f));
-
-        // ✅ filtro por texto (se termo estiver vazio, passa)
-        const passaTexto =
-            !termo || nome.includes(termo) || cat.includes(termo) || desc.includes(termo);
-
-        return passaAtributos && passaTexto;
-    });
-
-    mostrar_produtos(filtrados);
-}
 
 
 function obterTermoBusca() {
@@ -362,7 +682,6 @@ if (podeUsarStorage()) {
             
             CONFIG_LOJA = config;
             aplicar_config();
-            carregar_fornecedores();
             carregar_produtos();
         })
             .catch(e => {
@@ -370,27 +689,6 @@ if (podeUsarStorage()) {
             carregar_produtos(); // CHAMADA DE EMERGÊNCIA: Garante que os produtos carreguem mesmo se a config falhar
         });
 }
-
-function carregar_fornecedores() {
-  const url = CONFIG.SCRIPT_URL + "?rota=fornecedores&nocache=" + Date.now();
-
-  fetch(url)
-    .then(r => r.json())
-    .then(d => {
-      if (!d.ok || !Array.isArray(d.itens)) {
-        console.warn("Fornecedores não carregados");
-        return;
-      }
-
-      d.itens.forEach(f => {
-        FORNECEDORES_MAP[f.nome] = f;
-      });
-
-      console.log("FORNECEDORES_MAP carregado:", FORNECEDORES_MAP);
-    })
-    .catch(e => console.error("Erro fornecedores:", e));
-}
-
 
 // --- ACESSIBILIDADE: calcula cor de texto (preto/branco) com bom contraste ---
 function hexToRgb(hex) {
@@ -596,7 +894,7 @@ if (temHierarquia) {
     if (categorias.length > 0) {
         categorias.forEach(cat => {
             var li = document.createElement('li');
-            li.innerHTML = `<a class="dropdown-item" href="#" onclick="mostrar_produtos_por_categoria('${cat}'); fechar_menu_mobile()">${cat}</a>`;
+            li.innerHTML = `<a class="dropdown-item" href="#" onclick="mostrar_produtos_por_categoria('${escapeJs_(cat)}'); fechar_menu_mobile()">${cat}</a>`;
             menu.appendChild(li);
         });
     }
@@ -900,10 +1198,18 @@ function renderizarFiltrosAtributos(produtos) {
 
 
 function toggleAtributoFiltro(a) {
-    if (FILTROS_ATRIB.has(a)) FILTROS_ATRIB.delete(a);
-    else FILTROS_ATRIB.add(a);
-    filtrarProdutos(); // reaproveita sua busca + lista atual
+  if (FILTROS_ATRIB.has(a)) FILTROS_ATRIB.delete(a);
+  else FILTROS_ATRIB.add(a);
+
+  // ✅ NOVO: filtros viram o “estado principal” do link
+  clearCategoriaFromUrl_("replace");
+  clearProdutoFromUrl_("replace");
+
+  setAtributosToUrl_(FILTROS_ATRIB, "replace");
+  filtrarProdutos();
 }
+
+
 
 function limparFiltrosAtributos() {
     FILTROS_ATRIB.clear();
@@ -924,49 +1230,88 @@ function atualizarBadgeFiltros() {
 
 // --- 3. PRODUTOS E LOADING ---
 function carregar_produtos() {
-    // 1. Tenta pegar o cache SOMENTE se puder usar storage
-    let cache = [];
-    if (podeUsarStorage()) {
-        cache = lsGetJSON(STORAGE_KEY_PRODUTOS, []);
-    }
-    
-    if (cache && cache.length > 0) {
-        ALL_PRODUTOS = cache;
-        carregar_categorias(cache);
-        renderizarFiltrosAtributos(cache);
-        mostrar_produtos(cache);
-        mostrar_skeleton(false);
-        aplicarRouteSePronto_();
-    } else {
-        // Se não tem cache ou storage bloqueado, mostra o loading e vai pra rede
-        mostrar_skeleton(true);
-    }
+  // 1) Tenta pegar o cache SOMENTE se puder usar storage
+  let cache = [];
+  if (podeUsarStorage()) {
+    cache = lsGetJSON(STORAGE_KEY_PRODUTOS, []);
+  }
 
-    var url = CONFIG.SCRIPT_URL + "?rota=produtos&nocache=" + new Date().getTime();
-    
-    fetch(url)
-        .then(r => r.json())
-        .then(data => {
-            mostrar_skeleton(false);
-            if (Array.isArray(data) && data.length > 0) {
-                // Tenta salvar no cache, mas se falhar não trava o site
-                if (podeUsarStorage()) {
-                    lsSetJSON(STORAGE_KEY_PRODUTOS, data);
-                }
-                ALL_PRODUTOS = data;
-                carregar_categorias(data);
-                renderizarFiltrosAtributos(data);
-                mostrar_produtos(data);
-                aplicarRouteSePronto_();
-            }
-        })
-        .catch(err => {
-            mostrar_skeleton(false);
-            console.error("Erro na Planilha:", err);
-            // Se der erro de rede, tenta mostrar o que tem na memória pelo menos
-            if(ALL_PRODUTOS.length > 0) mostrar_produtos(ALL_PRODUTOS);
-        });
+  // 2) Se tem cache, renderiza rápido (mas SEM bloquear a atualização via rede)
+  if (cache && cache.length > 0) {
+    const ativadosCache = filtrarSomenteAtivados_(cache);
+
+    ALL_PRODUTOS = ativadosCache;
+    carregar_categorias(ativadosCache);
+    renderizarFiltrosAtributos(ativadosCache);
+    mostrar_skeleton(false);
+
+    // Se existe rota na URL, aplica a rota; senão mostra catálogo
+    if (temRouteAtiva_()) {
+      ROUTE_APLICADA = false;
+      ROUTE_PENDING = parseRouteFromUrl_();
+      aplicarRouteSePronto_();
+    } else {
+      mostrar_produtos(ativadosCache);
+    }
+  } else {
+    // Se não tem cache (ou storage bloqueado), mostra skeleton enquanto busca na rede
+    mostrar_skeleton(true);
+  }
+
+  // 3) Busca na rede (sempre), para atualizar
+  var url = CONFIG.SCRIPT_URL + "?rota=produtos&nocache=" + new Date().getTime();
+
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      mostrar_skeleton(false);
+
+      if (Array.isArray(data) && data.length > 0) {
+        // ✅ Filtra só "Ativado"
+        const ativados = filtrarSomenteAtivados_(data);
+
+        // salva o ORIGINAL no cache (se permitido)
+        if (podeUsarStorage()) {
+          lsSetJSON(STORAGE_KEY_PRODUTOS, data);
+        }
+
+        ALL_PRODUTOS = ativados;
+        carregar_categorias(ativados);
+        renderizarFiltrosAtributos(ativados);
+
+        // Se existe rota, reaplica agora que chegou dado novo
+        if (temRouteAtiva_()) {
+          ROUTE_APLICADA = false;
+          ROUTE_PENDING = parseRouteFromUrl_();
+          aplicarRouteSePronto_();
+        } else {
+          mostrar_produtos(ativados);
+        }
+      } else {
+        // Se veio vazio, pelo menos mantém o que já tinha em tela/memória
+        if (ALL_PRODUTOS && ALL_PRODUTOS.length > 0) {
+          mostrar_produtos(ALL_PRODUTOS);
+        } else {
+          mostrar_produtos([]);
+        }
+      }
+    })
+    .catch(err => {
+      mostrar_skeleton(false);
+      console.error("Erro na Planilha:", err);
+
+      // Se der erro de rede, tenta mostrar o que tem na memória pelo menos
+      if (ALL_PRODUTOS && ALL_PRODUTOS.length > 0) {
+        mostrar_produtos(ALL_PRODUTOS);
+      } else if (cache && cache.length > 0) {
+        // último fallback: cache cru (mesmo sem ativados)
+        mostrar_produtos(filtrarSomenteAtivados_(cache));
+      } else {
+        mostrar_produtos([]);
+      }
+    });
 }
+
 
 
 
@@ -1041,14 +1386,7 @@ function mostrar_produtos(produtos) {
     if (CONFIG_LOJA.ColunasDesktop == 3) colClass = 'col-md-4';
     if (CONFIG_LOJA.ColunasDesktop == 2) colClass = 'col-md-6';
 
-        produtos.forEach(p => {
-                // ✅ NOVO: FILTRO DE STATUS
-                // Normaliza para minúsculo para aceitar "Ativo", "ativo" ou "ATIVO"
-                // Se tiver algo escrito em Status e NÃO for "ativo", ele ignora o produto.
-                if (p.Status && String(p.Status).trim().toLowerCase() !== "ativo") {
-                    return;
-                }
-
+    produtos.forEach(p => {
         var altText = p.Produto + " - " + p.Categoria;
         var infoExtra = (p.Tamanhos || p.Variacoes) ? `<small>Opções disponíveis</small>` : '';
         const imgCard = ajustarImagemDrive(p.ImagemPrincipal, 500);
@@ -1104,6 +1442,9 @@ function limpar_filtros() {
     mostrar_produtos(ALL_PRODUTOS);
     clearCategoriaFromUrl_("push");
     clearProdutoFromUrl_("replace");
+        clearBuscaFromUrl_("push");
+    clearAtributosFromUrl_("push");
+
 }
 
 
@@ -1209,43 +1550,80 @@ function abrir_modal_ver(id) {
     if (full) full.innerHTML = descCompleta;
 
 
-    var containerImagens = document.getElementById('carouselImagensContainer');
-    containerImagens.innerHTML = '';
+var containerImagens = document.getElementById('carouselImagensContainer');
+if (containerImagens) containerImagens.innerHTML = "";
 
-    var imgs = [produtoAtual.ImagemPrincipal];
-    if (produtoAtual.ImagensExtras) {
-        imgs = imgs.concat(produtoAtual.ImagensExtras.split(',').map(s => s.trim()));
-    }
+// ✅ ID do produto atual para evitar “atualizar o modal errado” se o usuário clicar rápido
+const __produtoIdAberto = String(produtoAtual.ID || "");
 
-// 1) monta lista final limpa
-const imgsLimpa = imgs
+// 1) começa só com a imagem principal (rápido)
+let imgsBase = [produtoAtual.ImagemPrincipal];
+
+// 2) pega tokens de ImagensExtras (podem ser links OU pasta)
+let tokensExtras = [];
+if (produtoAtual.ImagensExtras) {
+  tokensExtras = String(produtoAtual.ImagensExtras)
+    .split(",")
     .map(s => String(s || "").trim())
-    .filter(s => s.length > 4);
+    .filter(Boolean);
+}
 
-// lista para o viewer (imagem maior, mas otimizada)
-const imgsViewer = imgsLimpa.map(s => ajustarImagemDrive(s, 1600));
+// separa links normais e pastas
+const linksIndividuais = tokensExtras.filter(t => !isFolderToken_(t));
+const pastas = tokensExtras.filter(t => isFolderToken_(t)).map(t => extrairIdPastaUrl_(t)).filter(Boolean);
 
+// render inicial: principal + links individuais (se houver)
+let listaInicial = dedupeLista_(imgsBase.concat(linksIndividuais));
+renderCarouselImagens_(containerImagens, listaInicial);
 
-    // 2) renderiza com a lista final (a mesma para todos)
-imgsLimpa.forEach((src, idx) => {
-  var div = document.createElement('div');
-  const srcAjustado = ajustarImagemDrive(src, 1200);
-  div.className = (idx === 0) ? 'carousel-item active' : 'carousel-item';
+// ✅ se houver pasta, mostra “carregando fotos…” (sem travar o site)
+const boxInfo = document.getElementById("modalInfoImagensExtras"); // opcional
+if (!boxInfo && pastas.length) {
+  // se você não tiver esse elemento no HTML, não tem problema; ignora
+}
+if (pastas.length && containerImagens) {
+  // cria um aviso simples abaixo do carrossel (se existir um container no modal)
+  const aviso = document.getElementById("avisoImgsExtras");
+  if (!aviso) {
+    const el = document.createElement("div");
+    el.id = "avisoImgsExtras";
+    el.className = "small text-muted mt-2";
+    el.innerHTML = 'Carregando fotos adicionais…';
+    containerImagens.parentElement?.appendChild(el);
+  } else {
+    aviso.innerHTML = 'Carregando fotos adicionais…';
+    aviso.style.display = "block";
+  }
+}
 
-  div.innerHTML = `
-    <img
-      src="${srcAjustado}"
-      class="d-block w-100"
-      width="900"
-      height="300"
-      decoding="async"
-      style="height: 300px; object-fit: contain; background: #f8f9fa; cursor: zoom-in;"
-      onclick='abrirViewerImagens(${JSON.stringify(imgsViewer)}, ${idx}, "Galeria")'
-    >
-  `;
+// 3) carrega as imagens das pastas (lazy) e atualiza o carrossel
+(async function () {
+  if (!pastas.length) return;
 
-  containerImagens.appendChild(div);
-});
+  let todas = listaInicial.slice();
+
+  for (const folderId of pastas) {
+    try {
+      const imgsPasta = await carregarImagensDaPasta_(folderId);
+      if (imgsPasta && imgsPasta.length) {
+        todas = dedupeLista_(todas.concat(imgsPasta));
+      }
+    } catch (e) {
+      console.warn("Falha ao carregar pasta:", folderId, e);
+    }
+  }
+
+  // se o usuário já abriu outro produto, não mexe
+  if (!produtoAtual || String(produtoAtual.ID || "") !== __produtoIdAberto) return;
+
+  // re-render com tudo
+  renderCarouselImagens_(containerImagens, todas);
+
+  // esconde aviso
+  const aviso = document.getElementById("avisoImgsExtras");
+  if (aviso) aviso.style.display = "none";
+})();
+
 
 
 
@@ -1356,26 +1734,14 @@ function simular_frete_produto_individual(produto) {
 
     var subsidio = parseFloat(CONFIG_LOJA.SubsidioFrete || 0);
 
-        var cepOrigemFornecedor =
-          FORNECEDORES_MAP[produto.Fornecedor]?.cep ||
-          CONFIG_LOJA.CEPPadrao;
-        
-        console.log("Frete individual:", {
-          produto: produto.Produto,
-          fornecedor: produto.Fornecedor,
-          cep_origem: cepOrigemFornecedor
-        });
-        
-        var dadosFrete = {
-          op: "calcular_frete",
-          cep: cep,
-          cep_origem: cepOrigemFornecedor,
-          peso: produto.Peso || 0.9,
-          comprimento: produto.Comprimento || 20,
-          altura: produto.Altura || 15,
-          largura: produto.Largura || 20
-        };
-
+    var dadosFrete = {
+        op: "calcular_frete",
+        cep: cep,
+        peso: produto.Peso || 0.9,
+        comprimento: produto.Comprimento || 20,
+        altura: produto.Altura || 15,
+        largura: produto.Largura || 20
+    };
 
     fetch(CONFIG.SCRIPT_URL, {
         method: 'POST',
@@ -1458,7 +1824,7 @@ var freteSelecionadoNome = "";
 var enderecoEntregaTemp = {};
 
 function adicionar_carrinho(id, prod, preco, img, freteGratisUF, variacao) {
-var c = lsGetJSON('carrinho', []);
+var c = carrinhoGet_();
 var existe = c.find(i => i.id === id);
 
 if (existe) {
@@ -1483,7 +1849,7 @@ if (existe) {
     });
 }
 
-lsSetJSON('carrinho', c);
+carrinhoSet_(c);
 
     atualizar_carrinho();
 
@@ -1495,7 +1861,7 @@ lsSetJSON('carrinho', c);
 }
 
 function editar_item_carrinho(idComVariacao) {
-    var c = lsGetJSON('carrinho', []);
+    var c = carrinhoGet_();
     var item = c.find(i => i.id === idComVariacao);
 
     if (item) {
@@ -1509,14 +1875,14 @@ function editar_item_carrinho(idComVariacao) {
 }
 
 function mudar_quantidade(id, delta) {
-   var c = lsGetJSON('carrinho', []);
+   var c = carrinhoGet_();
     var item = c.find(i => i.id === id);
     if (item) {
         item.quantidade += delta;
         if (item.quantidade <= 0) {
             c.splice(c.findIndex(i => i.id === id), 1);
         }
-        lsSetJSON('carrinho', c);
+        carrinhoSet_(c);
         atualizar_carrinho();
         bloquearCheckout(true);
         document.getElementById('carrinho_opcoes_frete').innerHTML = "Quantidade mudou. Recalcule o frete.";
@@ -1527,9 +1893,9 @@ function mudar_quantidade(id, delta) {
 }
 
 function remover_carrinho(id) {
-   var c = lsGetJSON('carrinho', []);
+   var c = carrinhoGet_();
     c.splice(c.findIndex(i => i.id === id), 1);
-    lsSetJSON('carrinho', c);
+    carrinhoSet_(c);
     atualizar_carrinho();
     bloquearCheckout(true);
     freteCalculado = 0;
@@ -1538,7 +1904,7 @@ function remover_carrinho(id) {
 }
 
 function atualizar_carrinho() {
-    var c = lsGetJSON('carrinho', []);
+    var c = carrinhoGet_();
     var div = document.getElementById('div_carrito');
     div.innerHTML = '';
     var subtotal = 0;
@@ -1632,7 +1998,7 @@ async function calcularFreteCarrinho() {
     var cep = document.getElementById('carrinho_cep').value.replace(/\D/g, '');
     if (cep.length !== 8) { alert("CEP inválido"); return; }
 
-    var carrinho = lsGetJSON('carrinho', []);
+    var carrinho = carrinhoGet_();
     if (carrinho.length === 0) return;
 
     var divOpcoes = document.getElementById('carrinho_opcoes_frete');
@@ -1653,7 +2019,7 @@ async function calcularFreteCarrinho() {
         console.warn("Falha ao buscar UF no ViaCEP", e);
     }
 
-   var todosProdutos = lsGetJSON(STORAGE_KEY_PRODUTOS, []);
+   var todosProdutos = obterProdutosFonte_(); // ou ALL_PRODUTOS se já estiver carregado
     var pesoTotal = 0;
     var volumeTotal = 0;
 
@@ -1792,7 +2158,7 @@ async function calcularFreteCarrinho() {
 function selecionarFrete(input) {
     freteCalculado = moneyToFloat(input.value);
     freteSelecionadoNome = input.getAttribute('data-nome');
-    var c = lsGetJSON('carrinho', []);
+    var c = carrinhoGet_();
     var subtotal = c.reduce((acc, i) => acc + (i.preco * i.quantidade), 0);
     atualizarTotalFinal(subtotal);
     bloquearCheckout(false);
@@ -1911,7 +2277,7 @@ function iniciarPagamentoFinal(ev) {
     }
 
 
-    var carrinho = lsGetJSON('carrinho', []);
+    var carrinho = carrinhoGet_();
     var items = carrinho.map(i => {
         var tituloCompleto = i.producto;
         if (i.variacao && i.variacao !== "Único") tituloCompleto += " - " + i.variacao;
@@ -2309,7 +2675,7 @@ function confirmarDadosExistentes(acao) {
 $(document).ready(function () {
     // Garante que o botão flutuante reapareça ao fechar qualquer modal se houver itens
     $('.modal').on('hidden.bs.modal', function () {
-        var c = lsGetJSON('carrinho', []);
+        var c = carrinhoGet_();
         if (c.length > 0) {
             $('#btn_carrinho_flutuante').fadeIn();
         }
@@ -2341,7 +2707,7 @@ function formatBRL(v) {
 
 function abrirConfirmacaoPedido(cliente, items, logisticaInfo) {
     // Preenche o modal (você precisa ter os IDs do modalConfirmacaoPedido)
-    const carrinho = lsGetJSON('carrinho', []);
+    const carrinho = carrinhoGet_();
     const subtotal = carrinho.reduce((acc, i) => acc + ((Number(i.preco) || 0) * (Number(i.quantidade) || 1)), 0);
     const frete = Number(freteCalculado) || 0;
     const total = subtotal + frete;
@@ -2464,6 +2830,9 @@ try {
 
 // ✅ 2) LIMPAR CARRINHO APÓS ENVIAR PRO WHATSAPP
 lsRemove("carrinho");
+carrinhoSet_([]);
+atualizar_carrinho();
+
 atualizar_carrinho();
 
 freteCalculado = 0;
@@ -2872,5 +3241,12 @@ if (elProd) {
     clearProdutoFromUrl_("replace");
   });
 }
+
+    // ✅ NOVO: Back/Forward do navegador (voltar/avançar)
+    window.addEventListener("popstate", () => {
+      ROUTE_APLICADA = false;
+      ROUTE_PENDING = parseRouteFromUrl_();
+      aplicarRouteSePronto_();
+    });
 
 });
